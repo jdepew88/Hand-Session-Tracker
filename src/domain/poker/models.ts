@@ -1,0 +1,361 @@
+import type { Cents } from '../money'
+import type { Card } from './cards'
+import type { Position } from './positions'
+
+/** Bump when the persisted/exported shape changes incompatibly. */
+export const SCHEMA_VERSION = 1
+
+export type Street = 'preflop' | 'flop' | 'turn' | 'river'
+export const STREETS: Street[] = ['preflop', 'flop', 'turn', 'river']
+
+export type HandStatus = 'setup' | 'preflop' | 'flop' | 'turn' | 'river' | 'showdown' | 'complete'
+
+export type ActionType = 'fold' | 'check' | 'call' | 'bet' | 'raise'
+
+/**
+ * A player decision.
+ *
+ * `to` is the seat's **total contribution for this street** once the action is
+ * applied -- never an increment. "Opens to $15, raised to $50" stores 1500 and
+ * 5000. One representation for bets, raises, calls and all-ins removes the
+ * entire class of hand-history bugs where a raise is misread as an addition on
+ * top of a call. The incremental chips are derived (`to - alreadyInThisStreet`).
+ *
+ * `fold` and `check` carry `to` equal to whatever the seat already had in.
+ */
+export interface ActionEvent {
+  id: string
+  kind: 'action'
+  street: Street
+  seat: number
+  action: ActionType
+  to: Cents
+}
+
+/** Board cards arriving. Part of the event log so replay reproduces the board. */
+export interface DealEvent {
+  id: string
+  kind: 'deal'
+  street: Exclude<Street, 'preflop'>
+  cards: Card[]
+}
+
+/** An opponent's (or hero's) cards becoming known at showdown. */
+export interface RevealEvent {
+  id: string
+  kind: 'reveal'
+  seat: number
+  cards: Card[]
+}
+
+export type HandEvent = ActionEvent | DealEvent | RevealEvent
+
+/** Forced bets posted before the first voluntary action. Derived, never stored as events. */
+export type ForcedBetKind = 'sb' | 'bb' | 'ante' | 'straddle' | 'dead'
+
+export interface ForcedBet {
+  seat: number
+  kind: ForcedBetKind
+  amount: Cents
+}
+
+export interface StraddleSetup {
+  seat: number
+  amount: Cents
+}
+
+export interface HandSeatSetup {
+  seat: number
+  /** Links to a PlayerProfile so lineups can become cross-session profiles later. */
+  playerId?: string
+  /** Nickname snapshot, so an exported hand reads correctly on its own. */
+  label?: string
+  startingStack: Cents
+}
+
+export type AnteMode = 'none' | 'all' | 'bb' | 'button'
+
+export interface HandSetup {
+  tableSize: number
+  buttonSeat: number
+  heroSeat: number
+  smallBlind: Cents
+  bigBlind: Cents
+  ante: Cents
+  anteMode: AnteMode
+  straddles: StraddleSetup[]
+  /** Dead money / missed blinds posted by a seat, outside the normal blind structure. */
+  deadMoney: { seat: number; amount: Cents }[]
+  seats: HandSeatSetup[]
+  /** Hero's hole cards. Empty until chosen; exactly two once set. */
+  heroCards: Card[]
+  rake: RakeStructure
+}
+
+/* ------------------------------------------------------------------ rake */
+
+export interface RakeStructure {
+  id: string
+  name: string
+  /** Drop taken as each street is reached. Amounts are additive, not cumulative totals. */
+  preflop: Cents
+  flop: Cents
+  turn: Cents
+  river: Cents
+  /** Jackpot / promotional drop, tracked separately from rake. */
+  jackpot: Cents
+  /** When the jackpot drop is taken. */
+  jackpotStreet: Street
+  /** Cap on rake (excluding jackpot). null = uncapped. */
+  cap: Cents | null
+  /** No drop at all if the hand ends before a flop. */
+  noFlopNoDrop: boolean
+  notes?: string
+}
+
+export interface RakeBreakdown {
+  /** Drop attributable to the house rake. */
+  rake: Cents
+  /** Jackpot / promotional drop. */
+  jackpot: Cents
+  /** rake + jackpot. */
+  total: Cents
+  /** Per-street explanation, for the UI and the summary. */
+  lines: { street: Street; rake: Cents; jackpot: Cents }[]
+  cappedAt: Cents | null
+}
+
+/* ------------------------------------------------------- derived hand state */
+
+export interface SeatState {
+  seat: number
+  label?: string
+  playerId?: string
+  position: Position
+  startingStack: Cents
+  /** Chips still in front of the player. Never negative. */
+  stack: Cents
+  /** Total committed across every street of this hand. */
+  committed: Cents
+  /** Committed on the current street only. */
+  streetCommitted: Cents
+  folded: boolean
+  allIn: boolean
+  /** Cards known to the app (hero from setup, others from reveal events). */
+  cards: Card[]
+  /** True once the seat has acted voluntarily on the current street. */
+  hasActedThisStreet: boolean
+}
+
+export interface Pot {
+  /** 0 = main pot, 1+ = side pots in creation order. */
+  index: number
+  amount: Cents
+  eligibleSeats: number[]
+}
+
+export interface HandState {
+  status: HandStatus
+  street: Street
+  board: Card[]
+  seats: Map<number, SeatState>
+  seatOrder: number[]
+  forcedBets: ForcedBet[]
+  /** Highest total street contribution. */
+  currentBet: Cents
+  /** Smallest legal raise increment on this street. */
+  minRaiseIncrement: Cents
+  /** Seat that made the last aggressive action this street, if any. */
+  lastAggressorSeat: number | null
+  /** Seat to act, or null when betting is closed. */
+  actingSeat: number | null
+  /** Live seats that still owe an action this street, in order. */
+  seatsToAct: number[]
+  /** Gross chips in the middle, including the current street. */
+  pot: Cents
+  pots: Pot[]
+  rake: RakeBreakdown
+  /** Gross pot minus total drop. */
+  netPot: Cents
+  /** Seats not folded. */
+  activeSeats: number[]
+  events: HandEvent[]
+  /** Set when the engine has concluded the hand on its own. */
+  endedBy: 'fold' | 'showdown' | null
+  /** Cards that can no longer be selected anywhere in this hand. */
+  usedCards: Card[]
+}
+
+/* -------------------------------------------------------------- results */
+
+export interface PotAward {
+  potIndex: number
+  seat: number
+  amount: Cents
+}
+
+export interface ShowdownEntry {
+  seat: number
+  cards: Card[]
+  /** null when the seat's cards are unknown. */
+  ranking: HandRanking | null
+}
+
+export type HandCategory =
+  | 'high-card'
+  | 'pair'
+  | 'two-pair'
+  | 'trips'
+  | 'straight'
+  | 'flush'
+  | 'full-house'
+  | 'quads'
+  | 'straight-flush'
+
+export interface HandRanking {
+  /** 1 = high card, 9 = straight flush. Higher wins. */
+  category: HandCategory
+  categoryRank: number
+  /** Tie-break values, most significant first. */
+  kickers: number[]
+  /** The best five cards. */
+  cards: Card[]
+  /** e.g. "two pair, Kings and Queens" */
+  description: string
+}
+
+export interface HandResult {
+  /** Seats awarded chips. */
+  winners: number[]
+  awards: PotAward[]
+  grossPot: Cents
+  rake: RakeBreakdown
+  netPot: Cents
+  /** Net chips won or lost by hero this hand, after rake. */
+  heroResult: Cents
+  finalStacks: { seat: number; stack: Cents }[]
+  showdown: ShowdownEntry[]
+  /** True when the user picked the winner because cards were unknown. */
+  manual: boolean
+  /** The winner could not be computed and has not been declared. */
+  undetermined: boolean
+}
+
+/* -------------------------------------------------------------- records */
+
+export const HAND_TAGS = [
+  'Big Pot',
+  'Bluff',
+  'Hero Call',
+  'Cooler',
+  'Bad Beat',
+  'Value Bet',
+  'All-In',
+  'Interesting',
+  'Vlog',
+  'Review Later',
+  'Mistake',
+] as const
+
+export interface HandContext {
+  location: string
+  gameType: string
+  stakesLabel: string
+  tableSize: number
+  heroPosition: Position
+}
+
+export interface HandRecord {
+  id: string
+  sessionId: string
+  handNumber: number
+  createdAt: string
+  updatedAt: string
+  setup: HandSetup
+  events: HandEvent[]
+  /** Manually declared winners, used when cards are unknown at showdown. */
+  manualWinners: number[]
+  favorite: boolean
+  tags: string[]
+  notes: string
+  /** Denormalised session context so a single exported hand is self-describing. */
+  context: HandContext
+}
+
+/* -------------------------------------------------------------- session */
+
+export const GAME_TYPES = ["No-Limit Hold'em", 'Pot-Limit Omaha', "Limit Hold'em", 'Other'] as const
+
+export interface BuyIn {
+  id: string
+  amount: Cents
+  at: string
+  note?: string
+}
+
+export interface Session {
+  id: string
+  createdAt: string
+  updatedAt: string
+  startedAt: string
+  endedAt: string | null
+  location: string
+  gameType: string
+  smallBlind: Cents
+  bigBlind: Cents
+  ante: Cents
+  anteMode: AnteMode
+  straddleAmount: Cents | null
+  tableSize: number
+  startingStack: Cents
+  buyIns: BuyIn[]
+  cashOut: Cents | null
+  rake: RakeStructure
+  heroSeat: number | null
+  buttonSeat: number | null
+  notes: string
+}
+
+export const PLAYER_ARCHETYPES = [
+  'Unknown',
+  'Tight Passive',
+  'Tight Aggressive',
+  'Loose Passive',
+  'Loose Aggressive',
+  'Calling Station',
+  'Nit',
+  'Maniac',
+  'Regular',
+  'Recreational',
+  'Old Man Coffee',
+  'Custom',
+] as const
+
+export type PlayerArchetype = (typeof PLAYER_ARCHETYPES)[number]
+
+export const PLAYER_TAG_COLORS = ['slate', 'red', 'amber', 'emerald', 'sky', 'violet'] as const
+export type PlayerTagColor = (typeof PLAYER_TAG_COLORS)[number]
+
+export interface PlayerProfile {
+  id: string
+  /** Null is reserved for the cross-session profiles a future version will add. */
+  sessionId: string | null
+  seat: number | null
+  nickname: string
+  archetype: PlayerArchetype
+  customArchetype: string
+  color: PlayerTagColor
+  notes: string
+  startingStack: Cents | null
+  currentStack: Cents | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AppSettings {
+  id: 'settings'
+  defaultLocation: string
+  defaultTableSize: number
+  defaultRakePresetId: string | null
+  confirmStreetTransitions: boolean
+}

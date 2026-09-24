@@ -1,0 +1,8 @@
+# Cloudflare Pages configuration.
+#
+# `pages_build_output_dir` is what makes this a Pages project rather than a
+# Worker: Wrangler uploads the contents of dist/, including the _headers and
+# _redirects files Vite copies out of public/.
+name = "handforge-poker"
+compatibility_date = "2026-09-24"
+pages_build_output_dir = "dist"

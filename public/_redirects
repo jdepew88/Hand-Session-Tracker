@@ -1,0 +1,4 @@
+# Client-side routing: any path that is not a real file is served the app shell
+# so deep links like /hands/<uuid> work on a hard refresh. Static assets are
+# matched before this rule, so bundles are never shadowed by it.
+/*    /index.html   200

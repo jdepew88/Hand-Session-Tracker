@@ -1,0 +1,114 @@
+@import 'tailwindcss';
+
+/*
+ * A poker-room palette: felt greens and low-chroma slate, nothing that reads as
+ * a casino promotion. Dark by default because this app is used at a table in a
+ * dim room, often one-handed.
+ */
+@theme {
+  --color-felt-50: #eaf7f0;
+  --color-felt-200: #a9e3c7;
+  --color-felt-400: #2fbd83;
+  --color-felt-500: #22a271;
+  --color-felt-600: #17815a;
+  --color-felt-700: #126044;
+
+  --color-room-50: #eef3f5;
+  --color-room-300: #9db0ba;
+  --color-room-400: #7f95a1;
+  --color-room-500: #5b7180;
+  --color-room-700: #2a3a43;
+  --color-room-800: #1b272d;
+  --color-room-850: #151f24;
+  --color-room-900: #101a1e;
+  --color-room-950: #0a1013;
+
+  --color-chip-red: #e2574c;
+  --color-chip-amber: #d99a34;
+
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/*
+ * Shared classes are declared with `@utility` rather than in a component layer
+ * so they can compose with `@apply` and with Tailwind's own variants.
+ */
+
+/** Money and stack figures line up in columns. */
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/** 44px minimum target on every interactive control. */
+@utility tap {
+  @apply min-h-11 min-w-11;
+}
+
+@utility card-surface {
+  @apply rounded-xl border border-room-700 bg-room-900;
+}
+
+@utility label {
+  @apply mb-1.5 block text-xs font-medium uppercase tracking-wide text-room-400;
+}
+
+@utility field {
+  @apply min-h-11 w-full rounded-lg border border-room-700 bg-room-850 px-3 py-2 text-base
+         text-room-50 placeholder:text-room-500 focus:border-felt-400 focus:outline-none;
+}
+
+@utility btn {
+  @apply tap inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm
+         font-semibold transition-colors disabled:pointer-events-none disabled:opacity-40;
+}
+
+@utility btn-primary {
+  @apply btn bg-felt-500 text-room-950 hover:bg-felt-400;
+}
+
+@utility btn-secondary {
+  @apply btn border border-room-700 bg-room-800 text-room-50 hover:bg-room-700;
+}
+
+@utility btn-ghost {
+  @apply btn text-room-300 hover:bg-room-800 hover:text-room-50;
+}
+
+@utility btn-danger {
+  @apply btn border border-chip-red/40 bg-chip-red/10 text-chip-red hover:bg-chip-red/20;
+}
+
+@utility chip {
+  @apply inline-flex items-center rounded-full border border-room-700 bg-room-850 px-2.5 py-1
+         text-xs font-medium text-room-300;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-room-950 font-sans text-room-50 antialiased;
+    /* Keep content clear of the home indicator on notched phones. */
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /*
+   * Focus must always be visible: this app is usable from a keyboard and the
+   * action buttons are the primary control surface.
+   */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-felt-400;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}

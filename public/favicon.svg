@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="HandForge">
+  <rect width="32" height="32" rx="7" fill="#0a1013"/>
+  <rect x="5.5" y="6" width="12" height="17" rx="2.5" fill="#e6edf0" transform="rotate(-9 11.5 14.5)"/>
+  <rect x="14" y="8" width="12" height="17" rx="2.5" fill="#2fbd83"/>
+  <path d="M20 12.2l3.4 4.1c.6.8.1 1.9-.9 1.9h-1.3v2.2h-2.4v-2.2h-1.3c-1 0-1.5-1.1-.9-1.9z" fill="#0a1013"/>
+</svg>

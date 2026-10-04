@@ -66,7 +66,7 @@ export function PlayersPage() {
   }
 
   if (!ready) return <Page title="Table lineup"><p className="text-sm text-room-400">Loading…</p></Page>
-  if (!session) return <Navigate to="/" replace />
+  if (!session) return <Navigate to="/sessions" replace />
 
   const positions =
     session.buttonSeat === null

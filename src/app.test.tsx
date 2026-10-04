@@ -53,15 +53,44 @@ beforeEach(async () => {
 
 afterEach(cleanup)
 
+describe('homepage', () => {
+  it('renders the hero and links into the session workflow', async () => {
+    renderApp('/')
+    expect(await screen.findByRole('heading', { level: 1, name: /Remember the hand/ })).toBeTruthy()
+
+    const starts = screen.getAllByRole('link', { name: /^Start a session/ })
+    expect(starts.length).toBeGreaterThan(0)
+    for (const link of starts) expect(link.getAttribute('href')).toBe('/sessions/new')
+
+    expect(screen.getByRole('link', { name: /See how it works/ }).getAttribute('href')).toBe('#how-it-works')
+    expect(document.getElementById('how-it-works')).toBeTruthy()
+    expect(screen.getByRole('heading', { level: 2, name: 'Reconstruct a hand in four simple steps' })).toBeTruthy()
+  })
+
+  it('marks Home as the current page and leaves planned pages inert', async () => {
+    renderApp('/')
+    const home = (await screen.findAllByRole('link', { name: 'Home' }))[0]!
+    expect(home.getAttribute('aria-current')).toBe('page')
+    expect(screen.queryByRole('link', { name: /About/ })).toBeNull()
+    expect(screen.getAllByText('About')[0]!.getAttribute('aria-disabled')).toBe('true')
+  })
+
+  it('reaches the new-session form from the primary call to action', async () => {
+    renderApp('/')
+    fireEvent.click((await screen.findAllByRole('link', { name: /^Start a session/ }))[0]!)
+    expect(await screen.findByLabelText('Location')).toBeTruthy()
+  })
+})
+
 describe('sessions', () => {
   it('shows the empty state before anything is recorded', async () => {
-    renderApp('/')
+    renderApp('/sessions')
     expect(await screen.findByText('No sessions yet')).toBeTruthy()
   })
 
   it('lists a saved session with its stakes', async () => {
     await seedSession()
-    renderApp('/')
+    renderApp('/sessions')
     expect(await screen.findByText('Commerce Casino')).toBeTruthy()
     expect(screen.getByText(/\$5\/\$5/)).toBeTruthy()
   })

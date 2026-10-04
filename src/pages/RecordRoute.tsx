@@ -35,7 +35,7 @@ export function RecordRoute() {
           title={sessions.length === 0 ? 'No session yet' : 'No session selected'}
           description="A hand belongs to a session, which is where the room, stakes, table size and drop come from."
           action={
-            <Link to={sessions.length === 0 ? '/sessions/new' : '/'} className="btn-primary">
+            <Link to={sessions.length === 0 ? '/sessions/new' : '/sessions'} className="btn-primary">
               {sessions.length === 0 ? 'Start a session' : 'Choose a session'}
             </Link>
           }

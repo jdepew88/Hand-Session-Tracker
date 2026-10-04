@@ -2,7 +2,7 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { useStore } from '../store/context'
 
 const NAV = [
-  { to: '/', label: 'Sessions', end: true, icon: 'M4 6h16M4 12h16M4 18h10' },
+  { to: '/sessions', label: 'Sessions', end: true, icon: 'M4 6h16M4 12h16M4 18h10' },
   { to: '/table', label: 'Table', end: false, icon: 'M3 12a9 5 0 1 0 18 0a9 5 0 1 0 -18 0' },
   { to: '/record', label: 'Record', end: false, icon: 'M12 5v14M5 12h14' },
   { to: '/hands', label: 'Hands', end: false, icon: 'M5 8h9v11H5zM10 5h9v11' },

@@ -38,7 +38,7 @@ export function SessionPage() {
   }, [sessionHands])
 
   if (!ready) return <Page title="Session"><p className="text-sm text-room-400">Loading…</p></Page>
-  if (!session) return <Navigate to="/" replace />
+  if (!session) return <Navigate to="/sessions" replace />
 
   const totalBuyIn = session.buyIns.reduce((sum, entry) => sum + entry.amount, 0)
   const settled = session.cashOut !== null
@@ -46,7 +46,7 @@ export function SessionPage() {
   return (
     <Page
       title={session.location || 'Unnamed room'}
-      back={{ to: '/', label: 'Sessions' }}
+      back={{ to: '/sessions', label: 'Sessions' }}
       subtitle={
         <>
           {stakesLabel(session)} · {session.gameType} · {session.tableSize}-handed

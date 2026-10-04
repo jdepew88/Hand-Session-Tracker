@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppShell } from './components/AppShell'
 import { HandHistoryPage } from './pages/HandHistoryPage'
+import { HomePage } from './pages/HomePage'
 import { NewSessionPage } from './pages/NewSessionPage'
 import { PlayersPage } from './pages/PlayersPage'
 import { RecordHandPage } from './pages/RecordHandPage'
@@ -13,8 +14,10 @@ import { TableRoute } from './pages/TableRoute'
 export function App() {
   return (
     <Routes>
+      {/* The homepage has its own site header, so it sits outside the app's tab-bar shell. */}
+      <Route index element={<HomePage />} />
       <Route element={<AppShell />}>
-        <Route index element={<SessionsPage />} />
+        <Route path="sessions" element={<SessionsPage />} />
         <Route path="sessions/new" element={<NewSessionPage />} />
         <Route path="sessions/:sessionId" element={<SessionPage />} />
         <Route path="sessions/:sessionId/players" element={<PlayersPage />} />

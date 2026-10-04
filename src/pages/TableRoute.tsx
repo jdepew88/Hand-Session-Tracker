@@ -22,7 +22,7 @@ export function TableRoute() {
         title="No session in progress"
         description="Start a session to set your room, stakes, table size and drop once, then record hands against it."
         action={
-          <Link to={sessions.length === 0 ? '/sessions/new' : '/'} className="btn-primary">
+          <Link to={sessions.length === 0 ? '/sessions/new' : '/sessions'} className="btn-primary">
             {sessions.length === 0 ? 'Start a session' : 'Choose a session'}
           </Link>
         }

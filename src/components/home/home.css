@@ -1,0 +1,569 @@
+/*
+ * Homepage-only presentation styles: the felt table, cards, chips and seat pods.
+ *
+ * These are plain classes rather than inline styles because the CSP forbids the
+ * `style` attribute. Everything on the table is sized in container units (cqi)
+ * against `.hf-stage`, so the whole scene scales as one object, with clamp()
+ * floors that keep labels legible on a phone.
+ *
+ * Physical objects (felt, cards, chips, the button) only ever depict poker
+ * state. Ordinary controls elsewhere on the page stay ordinary controls.
+ */
+
+.hf-home {
+  --hf-felt-hi: #2a6a51;
+  --hf-felt: #1a4c3a;
+  --hf-felt-lo: #0c2a20;
+  --hf-ivory: #f3eee3;
+  --hf-ivory-lo: #e4ddcc;
+  --hf-ink: #1b1f22;
+  --hf-suit-h: #b3352d;
+  --hf-suit-d: #2a62a6;
+  --hf-suit-c: #23774c;
+  --hf-bone: #f1ede4;
+  --hf-steel: #9db0ba;
+  --hf-steel-dim: #7f95a1;
+  --hf-accent: #2fbd83;
+}
+
+/* ---------------------------------------------------------------- room ---- */
+
+/* A low pool of light behind the table; the rest of the page stays charcoal. */
+.hf-room {
+  background:
+    radial-gradient(60% 70% at 72% 38%, rgba(64, 92, 80, 0.22), transparent 70%),
+    radial-gradient(40% 40% at 10% 0%, rgba(80, 100, 112, 0.1), transparent 70%);
+}
+
+/* --------------------------------------------------------------- stage ---- */
+
+.hf-stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 5 / 4;
+  container-type: inline-size;
+}
+
+@media (min-width: 640px) {
+  .hf-stage {
+    aspect-ratio: 10 / 7;
+  }
+}
+
+.hf-rail {
+  position: absolute;
+  inset: 12% 6.5% 13%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 28%, #2c2f31 0%, #18191b 55%, #0b0c0d 100%);
+  box-shadow:
+    0 3cqi 7cqi rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    inset 0 0.5cqi 0.9cqi rgba(255, 255, 255, 0.07),
+    inset 0 -0.6cqi 1.2cqi rgba(0, 0, 0, 0.65);
+}
+
+.hf-felt {
+  position: absolute;
+  inset: 3.6cqi;
+  border-radius: 50%;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.32'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse 70% 62% at 50% 42%, var(--hf-felt-hi) 0%, var(--hf-felt) 48%, var(--hf-felt-lo) 100%);
+  box-shadow:
+    inset 0 0 0 0.3cqi #0a0b0b,
+    inset 0 1.2cqi 3.5cqi rgba(0, 0, 0, 0.55);
+}
+
+/* The printed betting line that runs around the felt. */
+.hf-felt::after {
+  content: '';
+  position: absolute;
+  inset: 12% 9%;
+  border-radius: 50%;
+  border: 1px solid rgba(243, 238, 227, 0.1);
+}
+
+/* Anything placed on the table is centred on its coordinate. */
+.hf-place {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  transform: translate(-50%, -50%);
+}
+
+/*
+ * Seat geometry, as percentages of the stage. Slot 0 is the hero at the bottom,
+ * then clockwise as seen from above: bottom-left, left, top-left, top,
+ * top-right, right, bottom-right.
+ */
+.hf-pod.hf-seat-0 { --x: 50%; --y: 89%; }
+.hf-pod.hf-seat-1 { --x: 20%; --y: 80%; }
+.hf-pod.hf-seat-2 { --x: 8%; --y: 49.5%; }
+.hf-pod.hf-seat-3 { --x: 20%; --y: 17%; }
+.hf-pod.hf-seat-4 { --x: 50%; --y: 9%; }
+.hf-pod.hf-seat-5 { --x: 80%; --y: 17%; }
+.hf-pod.hf-seat-6 { --x: 92%; --y: 49.5%; }
+.hf-pod.hf-seat-7 { --x: 80%; --y: 80%; }
+
+.hf-front.hf-seat-0 { --x: 39%; --y: 76%; }
+.hf-front.hf-seat-1 { --x: 30.5%; --y: 70%; }
+.hf-front.hf-seat-2 { --x: 20%; --y: 49.5%; }
+.hf-front.hf-seat-3 { --x: 30.5%; --y: 28%; }
+.hf-front.hf-seat-4 { --x: 50%; --y: 21.5%; }
+.hf-front.hf-seat-5 { --x: 69.5%; --y: 28%; }
+.hf-front.hf-seat-6 { --x: 80%; --y: 49.5%; }
+.hf-front.hf-seat-7 { --x: 69.5%; --y: 70%; }
+
+.hf-bet.hf-seat-6 { --x: 72.5%; --y: 59%; }
+.hf-bet.hf-seat-7 { --x: 61%; --y: 65%; }
+
+.hf-hole { --x: 50%; --y: 73.5%; }
+.hf-dealer { --x: 60%; --y: 78%; }
+.hf-pot { --x: 50%; --y: 35%; }
+.hf-board { --x: 50%; --y: 50.5%; }
+
+/* ---------------------------------------------------------------- pods ---- */
+
+.hf-pod {
+  font-size: clamp(10px, 2.05cqi, 15.5px);
+  padding: 0.4em 0.65em 0.45em;
+  border-radius: 0.7em;
+  background: rgba(13, 17, 19, 0.88);
+  border: 1px solid rgba(241, 237, 228, 0.1);
+  box-shadow: 0 0.35em 1em rgba(0, 0, 0, 0.45);
+  color: var(--hf-bone);
+  line-height: 1.15;
+  white-space: nowrap;
+  z-index: 2;
+}
+
+.hf-pod__pos {
+  font-size: 0.78em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--hf-steel);
+}
+
+.hf-pod__stack {
+  font-size: 1.2em;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.hf-pod__meta {
+  font-size: 0.72em;
+  color: var(--hf-steel-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The big-blind depth is telemetry, not essential: drop it on a narrow table. */
+@container (max-width: 520px) {
+  .hf-pod__bb {
+    display: none;
+  }
+}
+
+.hf-pod--folded {
+  opacity: 0.48;
+}
+
+.hf-pod--hero {
+  border-color: rgba(47, 189, 131, 0.7);
+  background: rgba(12, 36, 27, 0.92);
+  box-shadow:
+    0 0 0 0.28em rgba(47, 189, 131, 0.13),
+    0 0.4em 1.2em rgba(0, 0, 0, 0.5);
+  text-align: center;
+  padding-inline: 0.95em;
+}
+
+.hf-pod--hero .hf-pod__pos {
+  color: #a9e3c7;
+}
+
+.hf-to-act {
+  display: inline-block;
+  margin-top: 0.25em;
+  padding: 0.1em 0.5em;
+  border-radius: 999px;
+  background: rgba(47, 189, 131, 0.18);
+  color: #a9e3c7;
+  font-size: 0.68em;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* --------------------------------------------------------------- cards ---- */
+
+.hf-card,
+.hf-back,
+.hf-slot {
+  display: inline-block;
+  position: relative;
+  width: 2.5em;
+  height: 3.5em;
+  border-radius: 0.28em;
+  flex: none;
+}
+
+.hf-card {
+  background: linear-gradient(170deg, #f8f4ea 0%, var(--hf-ivory) 45%, var(--hf-ivory-lo) 100%);
+  box-shadow:
+    0 0.14em 0.3em rgba(0, 0, 0, 0.45),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+  color: var(--hf-ink);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.hf-card--h { color: var(--hf-suit-h); }
+.hf-card--d { color: var(--hf-suit-d); }
+.hf-card--c { color: var(--hf-suit-c); }
+
+.hf-card__rank {
+  position: absolute;
+  top: 0.22em;
+  left: 0.28em;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 1em;
+  letter-spacing: -0.04em;
+}
+
+.hf-card__rank small {
+  font-size: 0.78em;
+  margin-top: 0.06em;
+}
+
+.hf-card__pip {
+  position: absolute;
+  right: 0.2em;
+  bottom: 0.12em;
+  font-size: 1.65em;
+}
+
+.hf-back {
+  width: 1.8em;
+  height: 2.5em;
+  border-radius: 0.22em;
+  background:
+    repeating-linear-gradient(45deg, rgba(243, 238, 227, 0.09) 0 1px, transparent 1px 0.3em),
+    repeating-linear-gradient(-45deg, rgba(243, 238, 227, 0.09) 0 1px, transparent 1px 0.3em),
+    #263744;
+  box-shadow:
+    inset 0 0 0 0.16em #263744,
+    inset 0 0 0 0.22em rgba(243, 238, 227, 0.55),
+    0 0.1em 0.25em rgba(0, 0, 0, 0.5);
+}
+
+.hf-back + .hf-back {
+  margin-left: -1em;
+  transform: rotate(9deg) translateY(-0.1em);
+}
+
+.hf-slot {
+  border: 1px dashed rgba(243, 238, 227, 0.26);
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.hf-board-row {
+  display: flex;
+  gap: 0.3em;
+  font-size: clamp(10px, 2.5cqi, 19px);
+}
+
+.hf-hole-row {
+  display: flex;
+  font-size: clamp(11px, 3cqi, 22px);
+}
+
+.hf-hole-row .hf-card:first-child {
+  transform: rotate(-7deg) translate(0.35em, 0.12em);
+}
+
+.hf-hole-row .hf-card:last-child {
+  transform: rotate(6deg) translateX(-0.35em);
+}
+
+/* --------------------------------------------------------------- chips ---- */
+
+.hf-cluster {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.45em;
+  font-size: clamp(5px, 1.15cqi, 9px);
+}
+
+.hf-cluster--folded {
+  opacity: 0.5;
+}
+
+.hf-stacks {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 0.18em;
+}
+
+.hf-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  filter: drop-shadow(0 0.3em 0.25em rgba(0, 0, 0, 0.45));
+}
+
+/* The face of the top chip: a ring of edge spots on an ellipse. */
+.hf-stack::before {
+  content: '';
+  width: 2.3em;
+  height: 0.85em;
+  margin-bottom: -0.42em;
+  border-radius: 50%;
+  position: relative;
+  z-index: 1;
+  background: radial-gradient(
+    ellipse at center,
+    var(--top) 0 42%,
+    rgba(243, 238, 227, 0.75) 43% 50%,
+    var(--top) 51%
+  );
+  box-shadow: inset 0 -0.06em 0 rgba(0, 0, 0, 0.25);
+}
+
+.hf-chip {
+  width: 2.3em;
+  height: 0.5em;
+  border-radius: 0 0 0.25em 0.25em / 0 0 0.2em 0.2em;
+  background-color: var(--c);
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0 0.34em,
+    rgba(243, 238, 227, 0.62) 0.34em 0.5em
+  );
+  box-shadow:
+    inset 0 -0.07em 0 rgba(0, 0, 0, 0.45),
+    inset 0 0.05em 0 rgba(255, 255, 255, 0.12);
+}
+
+.hf-c-r { --c: #8f3a33; }
+.hf-c-k { --c: #2a333a; }
+.hf-c-g { --c: #23664b; }
+.hf-c-i { --c: #cfc7b5; }
+.hf-top-r { --top: #8f3a33; }
+.hf-top-k { --top: #2a333a; }
+.hf-top-g { --top: #23664b; }
+.hf-top-i { --top: #cfc7b5; }
+
+/* Ivory chips need darker edge spots to read. */
+.hf-c-i {
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0 0.34em,
+    rgba(27, 31, 34, 0.45) 0.34em 0.5em
+  );
+}
+
+/* ------------------------------------------------------ pot and button ---- */
+
+.hf-pot-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  font-size: clamp(10px, 2.05cqi, 15.5px);
+}
+
+.hf-pot-label {
+  padding: 0.35em 0.7em;
+  border-radius: 0.6em;
+  background: rgba(8, 20, 15, 0.62);
+  border: 1px solid rgba(241, 237, 228, 0.08);
+  line-height: 1.1;
+}
+
+.hf-pot-label span {
+  display: block;
+  font-size: 0.72em;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--hf-steel);
+}
+
+.hf-pot-label strong {
+  font-size: 1.2em;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--hf-bone);
+}
+
+.hf-dealer-btn {
+  display: grid;
+  place-items: center;
+  width: 2.1em;
+  height: 2.1em;
+  border-radius: 50%;
+  font-size: clamp(8px, 1.4cqi, 12px);
+  font-weight: 800;
+  color: var(--hf-ink);
+  background: radial-gradient(circle at 40% 35%, #fbf8f1, var(--hf-ivory) 55%, #d6cfbf);
+  box-shadow:
+    0 0.15em 0 #b9b1a0,
+    0 0.35em 0.5em rgba(0, 0, 0, 0.5);
+}
+
+.hf-bet-amount {
+  margin-top: 0.3em;
+  font-size: clamp(8.5px, 1.45cqi, 12px);
+  font-weight: 600;
+  color: var(--hf-bone);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+}
+
+.hf-hud {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  gap: 0.6em;
+  font-size: clamp(9px, 1.45cqi, 12px);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--hf-steel-dim);
+}
+
+.hf-hud b {
+  color: var(--hf-steel);
+  font-weight: 600;
+}
+
+/* ------------------------------------------------------- mini table ---- */
+
+/* The step-one illustration: the same seat geometry, reduced to markers. */
+.hf-mini {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  container-type: inline-size;
+}
+
+.hf-mini .hf-rail {
+  inset: 14% 10%;
+}
+
+.hf-mini .hf-felt {
+  inset: 2.6cqi;
+}
+
+.hf-mini .hf-felt::after {
+  display: none;
+}
+
+.hf-marker {
+  font-size: clamp(9.5px, 3.6cqi, 12px);
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  padding: 0.3em 0.75em;
+  border-radius: 999px;
+  border: 1px solid rgba(241, 237, 228, 0.22);
+  background: #11171a;
+  color: var(--hf-bone);
+  white-space: nowrap;
+}
+
+.hf-marker--hero {
+  border-color: var(--hf-accent);
+  background: #10392a;
+  color: #a9e3c7;
+}
+
+.hf-mini .hf-seat-0 { --x: 50%; --y: 86%; }
+.hf-mini .hf-seat-1 { --x: 22%; --y: 80%; }
+.hf-mini .hf-seat-2 { --x: 9%; --y: 50%; }
+.hf-mini .hf-seat-3 { --x: 22%; --y: 18%; }
+.hf-mini .hf-seat-4 { --x: 50%; --y: 12%; }
+.hf-mini .hf-seat-5 { --x: 78%; --y: 18%; }
+.hf-mini .hf-seat-6 { --x: 91%; --y: 50%; }
+.hf-mini .hf-seat-7 { --x: 78%; --y: 80%; }
+.hf-mini .hf-dealer { --x: 63%; --y: 70%; }
+
+.hf-mini .hf-dealer-btn {
+  font-size: clamp(7px, 2.6cqi, 10px);
+}
+
+/* Cards in the step panels are sized in px, not against a table. */
+.hf-step-cards {
+  display: flex;
+  gap: 0.3em;
+  font-size: clamp(12px, 5.6cqi, 17px);
+}
+
+/* -------------------------------------------------------------- motion ---- */
+
+/*
+ * Every animation lives behind `no-preference`, so reduced-motion users get the
+ * finished scene with nothing moving -- not a sped-up version of it.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .hf-enter {
+    animation: hf-rise 900ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+
+  .hf-board-row .hf-card {
+    animation: hf-deal 520ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+
+  .hf-board-row .hf-card:nth-child(1) { animation-delay: 550ms; }
+  .hf-board-row .hf-card:nth-child(2) { animation-delay: 640ms; }
+  .hf-board-row .hf-card:nth-child(3) { animation-delay: 730ms; }
+
+  /* One soft breath on the seat whose turn it is; slow enough to ignore. */
+  .hf-pod--hero::after {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    border: 1px solid rgba(47, 189, 131, 0.55);
+    animation: hf-breathe 3.2s ease-in-out 1.2s infinite;
+    pointer-events: none;
+  }
+
+  .hf-reveal {
+    transition:
+      opacity 700ms ease,
+      transform 700ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+
+  .hf-reveal[data-revealed='false'] {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+@keyframes hf-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+}
+
+@keyframes hf-deal {
+  from {
+    opacity: 0;
+    transform: translateY(-0.6em);
+  }
+}
+
+@keyframes hf-breathe {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+}

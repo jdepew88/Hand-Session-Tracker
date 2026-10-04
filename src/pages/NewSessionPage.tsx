@@ -62,7 +62,7 @@ export function NewSessionPage() {
   }
 
   return (
-    <Page title="New session" back={{ to: '/', label: 'Sessions' }}>
+    <Page title="New session" back={{ to: '/sessions', label: 'Sessions' }}>
       <form onSubmit={submit} className="space-y-6 pb-8">
         <section className="card-surface space-y-4 p-3">
           <div>

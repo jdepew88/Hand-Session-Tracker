@@ -293,6 +293,23 @@ export interface BuyIn {
   note?: string
 }
 
+/**
+ * Whether a physical chair has a player in it, between hands.
+ *
+ * A string union rather than a boolean so another state (sitting out, say) can
+ * be added later without changing the shape. Anything that is not `'empty'` is
+ * dealt in.
+ */
+export type SeatStatus = 'occupied' | 'empty'
+
+/**
+ * Seat status keyed by physical seat number. Entries for seats beyond the
+ * current table size are kept, so shrinking the table and growing it back
+ * does not forget who was sitting where. A seat with no entry is occupied:
+ * that is what every session meant before occupancy was stored.
+ */
+export type SeatOccupancy = Partial<Record<number, SeatStatus>>
+
 export interface Session {
   id: string
   createdAt: string
@@ -311,8 +328,11 @@ export interface Session {
   buyIns: BuyIn[]
   cashOut: Cents | null
   rake: RakeStructure
+  /** Must be an occupied seat (or null). */
   heroSeat: number | null
+  /** A physical chair. May be an empty one: a dead button. */
   buttonSeat: number | null
+  seatStatus: SeatOccupancy
   notes: string
 }
 

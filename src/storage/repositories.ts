@@ -1,4 +1,5 @@
 import type { AppSettings, HandRecord, PlayerProfile, RakeStructure, Session } from '../domain/poker/models'
+import { withSeatOccupancy } from '../domain/poker/occupancy'
 import { BUILT_IN_RAKE_PRESETS } from '../domain/poker/rake'
 import { STORES, idb } from './db'
 
@@ -69,11 +70,16 @@ const byNewestHand = (a: HandRecord, b: HandRecord) =>
 
 export const indexedDbRepositories: Repositories = {
   sessions: {
+    // Sessions saved before seat occupancy existed come back with every chair
+    // occupied; the explicit statuses are written on the next save.
     async list() {
       const sessions = await idb.getAll<Session>(STORES.sessions)
-      return sessions.sort(byNewestSession)
+      return sessions.map(withSeatOccupancy).sort(byNewestSession)
     },
-    get: (id) => idb.get<Session>(STORES.sessions, id),
+    async get(id) {
+      const session = await idb.get<Session>(STORES.sessions, id)
+      return session && withSeatOccupancy(session)
+    },
     save: (session) => idb.put(STORES.sessions, session),
     remove: (id) => idb.remove(STORES.sessions, id),
   },

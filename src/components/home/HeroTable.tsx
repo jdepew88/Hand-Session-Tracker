@@ -9,7 +9,9 @@ import {
   depthOf,
   type DemoSeat,
 } from './demoHand'
-import { CardBacks, ChipColumns, ChipStacks, DealerButton, EmptySlot, FeltCard } from './TableBits'
+import { CardBacks, EmptySlot, FeltCard } from '../table/Cards'
+import { ChipColumns, ChipStacks } from '../table/ChipStack'
+import { DealerButton } from '../table/DealerButton'
 
 const DESCRIPTION =
   `Illustration of an eight-handed $2/$5 table on the flop. You are on the button with ` +

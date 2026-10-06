@@ -1,5 +1,8 @@
 /*
- * Homepage-only presentation styles: the felt table, cards, chips and seat pods.
+ * Homepage-only presentation: the hero scene, its seat pods and the step
+ * illustrations. The physical primitives they are built from -- felt, rail,
+ * cards, chips and the dealer puck -- live in components/table/table.css and
+ * are shared with the app's table screen.
  *
  * These are plain classes rather than inline styles because the CSP forbids the
  * `style` attribute. Everything on the table is sized in container units (cqi)
@@ -9,22 +12,6 @@
  * Physical objects (felt, cards, chips, the button) only ever depict poker
  * state. Ordinary controls elsewhere on the page stay ordinary controls.
  */
-
-.hf-home {
-  --hf-felt-hi: #2a6a51;
-  --hf-felt: #1a4c3a;
-  --hf-felt-lo: #0c2a20;
-  --hf-ivory: #f3eee3;
-  --hf-ivory-lo: #e4ddcc;
-  --hf-ink: #1b1f22;
-  --hf-suit-h: #b3352d;
-  --hf-suit-d: #2a62a6;
-  --hf-suit-c: #23774c;
-  --hf-bone: #f1ede4;
-  --hf-steel: #9db0ba;
-  --hf-steel-dim: #7f95a1;
-  --hf-accent: #2fbd83;
-}
 
 /* ---------------------------------------------------------------- room ---- */
 
@@ -48,47 +35,6 @@
   .hf-stage {
     aspect-ratio: 10 / 7;
   }
-}
-
-.hf-rail {
-  position: absolute;
-  inset: 12% 6.5% 13%;
-  border-radius: 50%;
-  background: radial-gradient(ellipse at 50% 28%, #2c2f31 0%, #18191b 55%, #0b0c0d 100%);
-  box-shadow:
-    0 3cqi 7cqi rgba(0, 0, 0, 0.6),
-    0 0 0 1px rgba(255, 255, 255, 0.05),
-    inset 0 0.5cqi 0.9cqi rgba(255, 255, 255, 0.07),
-    inset 0 -0.6cqi 1.2cqi rgba(0, 0, 0, 0.65);
-}
-
-.hf-felt {
-  position: absolute;
-  inset: 3.6cqi;
-  border-radius: 50%;
-  background:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.32'/%3E%3C/svg%3E"),
-    radial-gradient(ellipse 70% 62% at 50% 42%, var(--hf-felt-hi) 0%, var(--hf-felt) 48%, var(--hf-felt-lo) 100%);
-  box-shadow:
-    inset 0 0 0 0.3cqi #0a0b0b,
-    inset 0 1.2cqi 3.5cqi rgba(0, 0, 0, 0.55);
-}
-
-/* The printed betting line that runs around the felt. */
-.hf-felt::after {
-  content: '';
-  position: absolute;
-  inset: 12% 9%;
-  border-radius: 50%;
-  border: 1px solid rgba(243, 238, 227, 0.1);
-}
-
-/* Anything placed on the table is centred on its coordinate. */
-.hf-place {
-  position: absolute;
-  left: var(--x);
-  top: var(--y);
-  transform: translate(-50%, -50%);
 }
 
 /*
@@ -195,80 +141,6 @@
   text-transform: uppercase;
 }
 
-/* --------------------------------------------------------------- cards ---- */
-
-.hf-card,
-.hf-back,
-.hf-slot {
-  display: inline-block;
-  position: relative;
-  width: 2.5em;
-  height: 3.5em;
-  border-radius: 0.28em;
-  flex: none;
-}
-
-.hf-card {
-  background: linear-gradient(170deg, #f8f4ea 0%, var(--hf-ivory) 45%, var(--hf-ivory-lo) 100%);
-  box-shadow:
-    0 0.14em 0.3em rgba(0, 0, 0, 0.45),
-    inset 0 0 0 1px rgba(0, 0, 0, 0.1);
-  color: var(--hf-ink);
-  font-weight: 700;
-  line-height: 1;
-}
-
-.hf-card--h { color: var(--hf-suit-h); }
-.hf-card--d { color: var(--hf-suit-d); }
-.hf-card--c { color: var(--hf-suit-c); }
-
-.hf-card__rank {
-  position: absolute;
-  top: 0.22em;
-  left: 0.28em;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  font-size: 1em;
-  letter-spacing: -0.04em;
-}
-
-.hf-card__rank small {
-  font-size: 0.78em;
-  margin-top: 0.06em;
-}
-
-.hf-card__pip {
-  position: absolute;
-  right: 0.2em;
-  bottom: 0.12em;
-  font-size: 1.65em;
-}
-
-.hf-back {
-  width: 1.8em;
-  height: 2.5em;
-  border-radius: 0.22em;
-  background:
-    repeating-linear-gradient(45deg, rgba(243, 238, 227, 0.09) 0 1px, transparent 1px 0.3em),
-    repeating-linear-gradient(-45deg, rgba(243, 238, 227, 0.09) 0 1px, transparent 1px 0.3em),
-    #263744;
-  box-shadow:
-    inset 0 0 0 0.16em #263744,
-    inset 0 0 0 0.22em rgba(243, 238, 227, 0.55),
-    0 0.1em 0.25em rgba(0, 0, 0, 0.5);
-}
-
-.hf-back + .hf-back {
-  margin-left: -1em;
-  transform: rotate(9deg) translateY(-0.1em);
-}
-
-.hf-slot {
-  border: 1px dashed rgba(243, 238, 227, 0.26);
-  background: rgba(0, 0, 0, 0.12);
-}
-
 .hf-board-row {
   display: flex;
   gap: 0.3em;
@@ -301,70 +173,6 @@
   opacity: 0.5;
 }
 
-.hf-stacks {
-  display: inline-flex;
-  align-items: flex-end;
-  gap: 0.18em;
-}
-
-.hf-stack {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  filter: drop-shadow(0 0.3em 0.25em rgba(0, 0, 0, 0.45));
-}
-
-/* The face of the top chip: a ring of edge spots on an ellipse. */
-.hf-stack::before {
-  content: '';
-  width: 2.3em;
-  height: 0.85em;
-  margin-bottom: -0.42em;
-  border-radius: 50%;
-  position: relative;
-  z-index: 1;
-  background: radial-gradient(
-    ellipse at center,
-    var(--top) 0 42%,
-    rgba(243, 238, 227, 0.75) 43% 50%,
-    var(--top) 51%
-  );
-  box-shadow: inset 0 -0.06em 0 rgba(0, 0, 0, 0.25);
-}
-
-.hf-chip {
-  width: 2.3em;
-  height: 0.5em;
-  border-radius: 0 0 0.25em 0.25em / 0 0 0.2em 0.2em;
-  background-color: var(--c);
-  background-image: repeating-linear-gradient(
-    90deg,
-    transparent 0 0.34em,
-    rgba(243, 238, 227, 0.62) 0.34em 0.5em
-  );
-  box-shadow:
-    inset 0 -0.07em 0 rgba(0, 0, 0, 0.45),
-    inset 0 0.05em 0 rgba(255, 255, 255, 0.12);
-}
-
-.hf-c-r { --c: #8f3a33; }
-.hf-c-k { --c: #2a333a; }
-.hf-c-g { --c: #23664b; }
-.hf-c-i { --c: #cfc7b5; }
-.hf-top-r { --top: #8f3a33; }
-.hf-top-k { --top: #2a333a; }
-.hf-top-g { --top: #23664b; }
-.hf-top-i { --top: #cfc7b5; }
-
-/* Ivory chips need darker edge spots to read. */
-.hf-c-i {
-  background-image: repeating-linear-gradient(
-    90deg,
-    transparent 0 0.34em,
-    rgba(27, 31, 34, 0.45) 0.34em 0.5em
-  );
-}
-
 /* ------------------------------------------------------ pot and button ---- */
 
 .hf-pot-wrap {
@@ -395,21 +203,6 @@
   font-weight: 650;
   font-variant-numeric: tabular-nums;
   color: var(--hf-bone);
-}
-
-.hf-dealer-btn {
-  display: grid;
-  place-items: center;
-  width: 2.1em;
-  height: 2.1em;
-  border-radius: 50%;
-  font-size: clamp(8px, 1.4cqi, 12px);
-  font-weight: 800;
-  color: var(--hf-ink);
-  background: radial-gradient(circle at 40% 35%, #fbf8f1, var(--hf-ivory) 55%, #d6cfbf);
-  box-shadow:
-    0 0.15em 0 #b9b1a0,
-    0 0.35em 0.5em rgba(0, 0, 0, 0.5);
 }
 
 .hf-bet-amount {
@@ -447,6 +240,10 @@
   width: 100%;
   aspect-ratio: 16 / 9;
   container-type: inline-size;
+}
+
+.hf-stage .hf-rail {
+  inset: 12% 6.5% 13%;
 }
 
 .hf-mini .hf-rail {

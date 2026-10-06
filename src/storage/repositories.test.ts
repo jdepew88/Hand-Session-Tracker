@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createHandRecord, createHandSetup, createPlayer, createSession, defaultSeats } from '../domain/poker/factories'
+import { setSeatStatus } from '../domain/poker/occupancy'
 import { EXAMPLE_STREET_DROP } from '../domain/poker/rake'
 import { STORES, idb, resetDatabaseConnection } from './db'
 import { DEFAULT_SETTINGS, indexedDbRepositories as repos } from './repositories'
@@ -39,6 +40,46 @@ describe('session repository', () => {
     await repos.sessions.save(created)
     await repos.sessions.remove(created.id)
     expect(await repos.sessions.list()).toHaveLength(0)
+  })
+})
+
+describe('seat occupancy in storage', () => {
+  it('persists empty seats across a reload', async () => {
+    const created = setSeatStatus(session(), 4, 'empty').session
+    await repos.sessions.save(created)
+    resetDatabaseConnection()
+    const loaded = await repos.sessions.get(created.id)
+    expect(loaded?.seatStatus[4]).toBe('empty')
+    expect(loaded?.seatStatus[3]).toBe('occupied')
+  })
+
+  it('loads a session saved before occupancy existed with every chair occupied', async () => {
+    const { seatStatus: _dropped, ...old } = session()
+    void _dropped
+    await idb.put(STORES.sessions, { ...old, heroSeat: 3, buttonSeat: 9 })
+
+    const loaded = await repos.sessions.get(old.id)
+    expect(loaded).toMatchObject({ heroSeat: 3, buttonSeat: 9, tableSize: 9 })
+    expect(Object.values(loaded!.seatStatus)).toEqual(Array(9).fill('occupied'))
+    expect((await repos.sessions.list())[0]!.seatStatus).toEqual(loaded!.seatStatus)
+    // Reading does not write: the stored record is unchanged until the next save.
+    expect(await idb.get<object>(STORES.sessions, old.id)).not.toHaveProperty('seatStatus')
+  })
+
+  it('leaves recorded hands untouched when a seat is emptied', async () => {
+    const created = session()
+    await repos.sessions.save(created)
+    const hand = createHandRecord(
+      created,
+      createHandSetup({ session: created, buttonSeat: 9, heroSeat: 4, seats: defaultSeats(9, 50_000) }),
+      1,
+    )
+    await repos.hands.save(hand)
+    const before = structuredClone(await repos.hands.get(hand.id))
+
+    await repos.sessions.save(setSeatStatus({ ...created, heroSeat: 4 }, 4, 'empty').session)
+    expect(await repos.hands.get(hand.id)).toEqual(before)
+    expect(before?.setup.seats.map((seat) => seat.seat)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9])
   })
 })
 

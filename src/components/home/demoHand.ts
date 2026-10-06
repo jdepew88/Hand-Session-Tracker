@@ -1,5 +1,6 @@
 import type { Cents } from '../../domain/money'
 import type { Card } from '../../domain/poker/cards'
+import { stackDepth, type Depth } from '../table/depth'
 
 /**
  * The illustrative hand the homepage tells, start to finish.
@@ -18,15 +19,9 @@ import type { Card } from '../../domain/poker/cards'
 
 export const BIG_BLIND: Cents = 500
 
-export type Depth = 'short' | 'normal' | 'deep' | 'very-deep'
-
-/** Stack depth in big blinds, bucketed for the chip illustration. */
+/** Stack depth bucket for the chip illustration. */
 export function depthOf(stack: Cents): Depth {
-  const bigBlinds = stack / BIG_BLIND
-  if (bigBlinds < 40) return 'short'
-  if (bigBlinds < 100) return 'normal'
-  if (bigBlinds < 200) return 'deep'
-  return 'very-deep'
+  return stackDepth(stack / BIG_BLIND)
 }
 
 export type DemoSeat = {

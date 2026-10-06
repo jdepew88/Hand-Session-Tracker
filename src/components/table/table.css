@@ -1,0 +1,741 @@
+/*
+ * The physical table, shared by the homepage illustrations and the app.
+ *
+ * Plain classes, never inline styles: the CSP forbids the `style` attribute,
+ * so positions are custom properties set by classes (`.pt-n9 .pt-seat-3`) and
+ * everything is sized in container units against the table itself.
+ *
+ * Physical objects -- felt, rail, cards, chips, the dealer puck -- only ever
+ * depict poker state. Controls around the table stay ordinary controls.
+ */
+
+:root {
+  --hf-felt-hi: #2a6a51;
+  --hf-felt: #1a4c3a;
+  --hf-felt-lo: #0c2a20;
+  --hf-ivory: #f3eee3;
+  --hf-ivory-lo: #e4ddcc;
+  --hf-ink: #1b1f22;
+  --hf-suit-h: #b3352d;
+  --hf-suit-d: #2a62a6;
+  --hf-suit-c: #23774c;
+  --hf-bone: #f1ede4;
+  --hf-steel: #9db0ba;
+  --hf-steel-dim: #7f95a1;
+  --hf-accent: #2fbd83;
+}
+
+.hf-rail {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 28%, #2c2f31 0%, #18191b 55%, #0b0c0d 100%);
+  box-shadow:
+    0 3cqi 7cqi rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    inset 0 0.5cqi 0.9cqi rgba(255, 255, 255, 0.07),
+    inset 0 -0.6cqi 1.2cqi rgba(0, 0, 0, 0.65);
+}
+
+.hf-felt {
+  position: absolute;
+  inset: 3.6cqi;
+  border-radius: 50%;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.32'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse 70% 62% at 50% 42%, var(--hf-felt-hi) 0%, var(--hf-felt) 48%, var(--hf-felt-lo) 100%);
+  box-shadow:
+    inset 0 0 0 0.3cqi #0a0b0b,
+    inset 0 1.2cqi 3.5cqi rgba(0, 0, 0, 0.55);
+}
+
+/* The printed betting line that runs around the felt. */
+.hf-felt::after {
+  content: '';
+  position: absolute;
+  inset: 12% 9%;
+  border-radius: 50%;
+  border: 1px solid rgba(243, 238, 227, 0.1);
+}
+
+/* Anything placed on the table is centred on its coordinate. */
+.hf-place {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  transform: translate(-50%, -50%);
+}
+
+/* --------------------------------------------------------------- cards ---- */
+
+.hf-card,
+.hf-back,
+.hf-slot {
+  display: inline-block;
+  position: relative;
+  width: 2.5em;
+  height: 3.5em;
+  border-radius: 0.28em;
+  flex: none;
+}
+
+.hf-card {
+  background: linear-gradient(170deg, #f8f4ea 0%, var(--hf-ivory) 45%, var(--hf-ivory-lo) 100%);
+  box-shadow:
+    0 0.14em 0.3em rgba(0, 0, 0, 0.45),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+  color: var(--hf-ink);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.hf-card--h { color: var(--hf-suit-h); }
+
+.hf-card--d { color: var(--hf-suit-d); }
+
+.hf-card--c { color: var(--hf-suit-c); }
+
+.hf-card__rank {
+  position: absolute;
+  top: 0.22em;
+  left: 0.28em;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 1em;
+  letter-spacing: -0.04em;
+}
+
+.hf-card__rank small {
+  font-size: 0.78em;
+  margin-top: 0.06em;
+}
+
+.hf-card__pip {
+  position: absolute;
+  right: 0.2em;
+  bottom: 0.12em;
+  font-size: 1.65em;
+}
+
+.hf-back {
+  width: 1.8em;
+  height: 2.5em;
+  border-radius: 0.22em;
+  background:
+    repeating-linear-gradient(45deg, rgba(243, 238, 227, 0.09) 0 1px, transparent 1px 0.3em),
+    repeating-linear-gradient(-45deg, rgba(243, 238, 227, 0.09) 0 1px, transparent 1px 0.3em),
+    #263744;
+  box-shadow:
+    inset 0 0 0 0.16em #263744,
+    inset 0 0 0 0.22em rgba(243, 238, 227, 0.55),
+    0 0.1em 0.25em rgba(0, 0, 0, 0.5);
+}
+
+.hf-back + .hf-back {
+  margin-left: -1em;
+  transform: rotate(9deg) translateY(-0.1em);
+}
+
+.hf-slot {
+  border: 1px dashed rgba(243, 238, 227, 0.26);
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.hf-stacks {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 0.18em;
+}
+
+.hf-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  filter: drop-shadow(0 0.3em 0.25em rgba(0, 0, 0, 0.45));
+}
+
+/* The face of the top chip: a ring of edge spots on an ellipse. */
+.hf-stack::before {
+  content: '';
+  width: 2.3em;
+  height: 0.85em;
+  margin-bottom: -0.42em;
+  border-radius: 50%;
+  position: relative;
+  z-index: 1;
+  background: radial-gradient(
+    ellipse at center,
+    var(--top) 0 42%,
+    rgba(243, 238, 227, 0.75) 43% 50%,
+    var(--top) 51%
+  );
+  box-shadow: inset 0 -0.06em 0 rgba(0, 0, 0, 0.25);
+}
+
+.hf-chip {
+  width: 2.3em;
+  height: 0.5em;
+  border-radius: 0 0 0.25em 0.25em / 0 0 0.2em 0.2em;
+  background-color: var(--c);
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0 0.34em,
+    rgba(243, 238, 227, 0.62) 0.34em 0.5em
+  );
+  box-shadow:
+    inset 0 -0.07em 0 rgba(0, 0, 0, 0.45),
+    inset 0 0.05em 0 rgba(255, 255, 255, 0.12);
+}
+
+.hf-c-r { --c: #8f3a33; }
+
+.hf-c-k { --c: #2a333a; }
+
+.hf-c-g { --c: #23664b; }
+
+.hf-c-i { --c: #cfc7b5; }
+
+.hf-top-r { --top: #8f3a33; }
+
+.hf-top-k { --top: #2a333a; }
+
+.hf-top-g { --top: #23664b; }
+
+.hf-top-i { --top: #cfc7b5; }
+
+/* Ivory chips need darker edge spots to read. */
+.hf-c-i {
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0 0.34em,
+    rgba(27, 31, 34, 0.45) 0.34em 0.5em
+  );
+}
+
+.hf-dealer-btn {
+  display: grid;
+  place-items: center;
+  width: 2.1em;
+  height: 2.1em;
+  border-radius: 50%;
+  font-size: clamp(8px, 1.4cqi, 12px);
+  font-weight: 800;
+  color: var(--hf-ink);
+  background: radial-gradient(circle at 40% 35%, #fbf8f1, var(--hf-ivory) 55%, #d6cfbf);
+  box-shadow:
+    0 0.15em 0 #b9b1a0,
+    0 0.35em 0.5em rgba(0, 0, 0, 0.5);
+}
+
+/* ======================================================= table screen ==== */
+
+/*
+ * The frame is the size container; the table inside it switches from a tall
+ * oval (phones) to a wide one once there is room, and every seat coordinate
+ * below switches with it.
+ */
+.pt-frame {
+  container: pt-table / inline-size;
+  width: 100%;
+}
+
+.pt-table {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+}
+
+.pt-table .hf-rail {
+  inset: 9% 13%;
+}
+
+.pt-mark {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+/* Where the dealer sits: the gap at the top of the table. */
+.pt-dealer-spot {
+  --x: 50%;
+  --y: 15%;
+  font-size: clamp(8.5px, 2.4cqi, 11px);
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(243, 238, 227, 0.32);
+}
+
+.pt-center {
+  --x: 50%;
+  --y: 50%;
+  width: 58%;
+  text-align: center;
+  font-size: clamp(10px, 3cqi, 13px);
+  line-height: 1.35;
+  color: rgba(243, 238, 227, 0.55);
+}
+
+.pt-center strong {
+  display: block;
+  font-size: 0.82em;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(243, 238, 227, 0.4);
+}
+
+/* --------------------------------------------------------------- seats ---- */
+
+.pt-seat {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 5.2em;
+  min-height: 44px;
+  padding: 0.42em 0.55em 0.45em;
+  border-radius: 0.8em;
+  border: 1px solid rgba(241, 237, 228, 0.16);
+  background: rgba(13, 17, 19, 0.93);
+  box-shadow: 0 0.35em 1em rgba(0, 0, 0, 0.45);
+  color: var(--hf-bone);
+  font-size: clamp(10.5px, 3cqi, 13px);
+  line-height: 1.15;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.pt-seat:hover {
+  border-color: rgba(241, 237, 228, 0.34);
+}
+
+.pt-seat__head {
+  display: flex;
+  align-items: center;
+  gap: 0.35em;
+}
+
+.pt-seat__num {
+  display: grid;
+  place-items: center;
+  min-width: 1.65em;
+  height: 1.65em;
+  padding: 0 0.2em;
+  border-radius: 999px;
+  border: 1px solid rgba(241, 237, 228, 0.3);
+  font-size: 0.74em;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--hf-steel);
+}
+
+.pt-seat__pos {
+  font-size: 0.95em;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.pt-seat__pos--unset {
+  color: var(--hf-steel-dim);
+  font-weight: 500;
+}
+
+.pt-seat__name {
+  display: none;
+  max-width: 8em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.78em;
+  color: var(--hf-steel);
+}
+
+.pt-seat__stack {
+  margin-top: 0.15em;
+  font-size: 0.92em;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.pt-seat__bb {
+  display: none;
+  font-size: 0.7em;
+  color: var(--hf-steel-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Nobody in the chair: dashed, see-through, and labelled EMPTY in words. */
+.pt-seat--empty {
+  border-style: dashed;
+  border-color: rgba(241, 237, 228, 0.28);
+  background: rgba(13, 17, 19, 0.45);
+  box-shadow: none;
+  color: var(--hf-steel);
+}
+
+.pt-seat--empty .pt-seat__num {
+  border-style: dashed;
+  color: var(--hf-steel-dim);
+}
+
+.pt-seat__state {
+  font-size: 0.72em;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--hf-steel-dim);
+}
+
+.pt-seat--hero {
+  border-color: rgba(47, 189, 131, 0.8);
+  border-style: solid;
+  background: rgba(12, 38, 28, 0.95);
+}
+
+.pt-seat--hero .pt-seat__num {
+  border-color: rgba(47, 189, 131, 0.7);
+  color: #a9e3c7;
+}
+
+/* The hero marker is a word, not just a colour. */
+.pt-you {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -62%);
+  padding: 0.12em 0.5em;
+  border-radius: 999px;
+  background: var(--hf-accent);
+  color: #0a1013;
+  font-size: 0.66em;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.pt-seat--selected {
+  box-shadow:
+    0 0 0 2px var(--hf-bone),
+    0 0.5em 1.3em rgba(0, 0, 0, 0.55);
+  z-index: 4;
+}
+
+/* -------------------------------------------------- puck and chips ---- */
+
+.pt-puck {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  pointer-events: none;
+}
+
+.pt-puck .hf-dealer-btn {
+  font-size: clamp(9.5px, 2.8cqi, 12px);
+}
+
+/* Chip stacks are qualitative, so they only appear when there is room. */
+.pt-chips {
+  display: none;
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  transform: translate(-50%, -50%);
+  font-size: clamp(5px, 0.95cqi, 8px);
+  pointer-events: none;
+}
+
+@container pt-table (min-width: 560px) {
+  .pt-table {
+    aspect-ratio: 16 / 10;
+  }
+
+  .pt-table .hf-rail {
+    inset: 10% 8%;
+  }
+
+  .pt-dealer-spot {
+    --y: 16.5%;
+    font-size: clamp(9px, 1.15cqi, 12px);
+  }
+
+  .pt-center {
+    width: 40%;
+    font-size: clamp(11px, 1.45cqi, 14px);
+  }
+
+  .pt-seat {
+    min-width: 6.4em;
+    font-size: clamp(11px, 1.75cqi, 15px);
+  }
+
+  .pt-seat__name,
+  .pt-seat__bb {
+    display: block;
+  }
+
+  .pt-puck .hf-dealer-btn {
+    font-size: clamp(10px, 1.4cqi, 13px);
+  }
+
+  .pt-chips {
+    display: block;
+  }
+}
+
+/* -------------------------------------------------------------- motion ---- */
+
+/* Reduced motion gets the end state immediately, never a sped-up version. */
+@media (prefers-reduced-motion: no-preference) {
+  .pt-puck {
+    transition:
+      left 420ms cubic-bezier(0.3, 0.7, 0.2, 1),
+      top 420ms cubic-bezier(0.3, 0.7, 0.2, 1);
+  }
+
+  .pt-seat {
+    transition:
+      border-color 180ms ease,
+      background-color 180ms ease,
+      box-shadow 180ms ease;
+  }
+
+  .pt-seat__pos {
+    animation: pt-fade 260ms ease both;
+  }
+}
+
+@keyframes pt-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* ------------------------------------------------------ seat geometry ---- */
+
+/*
+ * Generated for every supported table size: seat 1 at the dealer's left,
+ * numbered clockwise, with one gap left at the top for the dealer.
+ * pt-seat-N = seat marker, pt-puck-N = button spot, pt-chips-N = stack.
+ */
+
+/* Tall oval: the default, for phones. */
+.pt-n2 .pt-seat-1 { --x: 82%; --y: 70.3%; }
+.pt-n2 .pt-puck-1 { --x: 70.8%; --y: 65%; }
+.pt-n2 .pt-seat-2 { --x: 18%; --y: 70.3%; }
+.pt-n2 .pt-puck-2 { --x: 29.2%; --y: 65%; }
+.pt-n6 .pt-seat-1 { --x: 78.9%; --y: 24.7%; }
+.pt-n6 .pt-puck-1 { --x: 68.8%; --y: 31.3%; }
+.pt-n6 .pt-seat-2 { --x: 86.1%; --y: 59%; }
+.pt-n6 .pt-puck-2 { --x: 73.4%; --y: 56.7%; }
+.pt-n6 .pt-seat-3 { --x: 66.1%; --y: 86.5%; }
+.pt-n6 .pt-puck-3 { --x: 60.4%; --y: 77%; }
+.pt-n6 .pt-seat-4 { --x: 33.9%; --y: 86.5%; }
+.pt-n6 .pt-puck-4 { --x: 39.6%; --y: 77%; }
+.pt-n6 .pt-seat-5 { --x: 13.9%; --y: 59%; }
+.pt-n6 .pt-puck-5 { --x: 26.6%; --y: 56.7%; }
+.pt-n6 .pt-seat-6 { --x: 21.1%; --y: 24.7%; }
+.pt-n6 .pt-puck-6 { --x: 31.2%; --y: 31.3%; }
+.pt-n7 .pt-seat-1 { --x: 76.2%; --y: 21.4%; }
+.pt-n7 .pt-puck-1 { --x: 67%; --y: 28.8%; }
+.pt-n7 .pt-seat-2 { --x: 87%; --y: 50%; }
+.pt-n7 .pt-puck-2 { --x: 74%; --y: 50%; }
+.pt-n7 .pt-seat-3 { --x: 76.2%; --y: 78.6%; }
+.pt-n7 .pt-puck-3 { --x: 67%; --y: 71.2%; }
+.pt-n7 .pt-seat-4 { --x: 50%; --y: 90.5%; }
+.pt-n7 .pt-puck-4 { --x: 50%; --y: 80%; }
+.pt-n7 .pt-seat-5 { --x: 23.8%; --y: 78.6%; }
+.pt-n7 .pt-puck-5 { --x: 33%; --y: 71.2%; }
+.pt-n7 .pt-seat-6 { --x: 13%; --y: 50%; }
+.pt-n7 .pt-puck-6 { --x: 26%; --y: 50%; }
+.pt-n7 .pt-seat-7 { --x: 23.8%; --y: 21.4%; }
+.pt-n7 .pt-puck-7 { --x: 33%; --y: 28.8%; }
+.pt-n8 .pt-seat-1 { --x: 73.8%; --y: 19%; }
+.pt-n8 .pt-puck-1 { --x: 65.4%; --y: 27%; }
+.pt-n8 .pt-seat-2 { --x: 86.4%; --y: 43%; }
+.pt-n8 .pt-puck-2 { --x: 73.6%; --y: 44.8%; }
+.pt-n8 .pt-seat-3 { --x: 82%; --y: 70.3%; }
+.pt-n8 .pt-puck-3 { --x: 70.8%; --y: 65%; }
+.pt-n8 .pt-seat-4 { --x: 62.7%; --y: 88.1%; }
+.pt-n8 .pt-puck-4 { --x: 58.2%; --y: 78.2%; }
+.pt-n8 .pt-seat-5 { --x: 37.3%; --y: 88.1%; }
+.pt-n8 .pt-puck-5 { --x: 41.8%; --y: 78.2%; }
+.pt-n8 .pt-seat-6 { --x: 18%; --y: 70.3%; }
+.pt-n8 .pt-puck-6 { --x: 29.2%; --y: 65%; }
+.pt-n8 .pt-seat-7 { --x: 13.6%; --y: 43%; }
+.pt-n8 .pt-puck-7 { --x: 26.4%; --y: 44.8%; }
+.pt-n8 .pt-seat-8 { --x: 26.2%; --y: 19%; }
+.pt-n8 .pt-puck-8 { --x: 34.6%; --y: 27%; }
+.pt-n9 .pt-seat-1 { --x: 71.7%; --y: 17.2%; }
+.pt-n9 .pt-puck-1 { --x: 64.1%; --y: 25.7%; }
+.pt-n9 .pt-seat-2 { --x: 85.2%; --y: 37.5%; }
+.pt-n9 .pt-puck-2 { --x: 72.8%; --y: 40.7%; }
+.pt-n9 .pt-seat-3 { --x: 85.2%; --y: 62.5%; }
+.pt-n9 .pt-puck-3 { --x: 72.8%; --y: 59.3%; }
+.pt-n9 .pt-seat-4 { --x: 71.7%; --y: 82.8%; }
+.pt-n9 .pt-puck-4 { --x: 64.1%; --y: 74.3%; }
+.pt-n9 .pt-seat-5 { --x: 50%; --y: 90.5%; }
+.pt-n9 .pt-puck-5 { --x: 50%; --y: 80%; }
+.pt-n9 .pt-seat-6 { --x: 28.3%; --y: 82.8%; }
+.pt-n9 .pt-puck-6 { --x: 35.9%; --y: 74.3%; }
+.pt-n9 .pt-seat-7 { --x: 14.8%; --y: 62.5%; }
+.pt-n9 .pt-puck-7 { --x: 27.2%; --y: 59.3%; }
+.pt-n9 .pt-seat-8 { --x: 14.8%; --y: 37.5%; }
+.pt-n9 .pt-puck-8 { --x: 27.2%; --y: 40.7%; }
+.pt-n9 .pt-seat-9 { --x: 28.3%; --y: 17.2%; }
+.pt-n9 .pt-puck-9 { --x: 35.9%; --y: 25.7%; }
+.pt-n10 .pt-seat-1 { --x: 70%; --y: 15.9%; }
+.pt-n10 .pt-puck-1 { --x: 63%; --y: 24.8%; }
+.pt-n10 .pt-seat-2 { --x: 83.7%; --y: 33.2%; }
+.pt-n10 .pt-puck-2 { --x: 71.8%; --y: 37.5%; }
+.pt-n10 .pt-seat-3 { --x: 86.6%; --y: 55.8%; }
+.pt-n10 .pt-puck-3 { --x: 73.8%; --y: 54.3%; }
+.pt-n10 .pt-seat-4 { --x: 78%; --y: 76.5%; }
+.pt-n10 .pt-puck-4 { --x: 68.1%; --y: 69.6%; }
+.pt-n10 .pt-seat-5 { --x: 60.4%; --y: 88.9%; }
+.pt-n10 .pt-puck-5 { --x: 56.8%; --y: 78.8%; }
+.pt-n10 .pt-seat-6 { --x: 39.6%; --y: 88.9%; }
+.pt-n10 .pt-puck-6 { --x: 43.2%; --y: 78.8%; }
+.pt-n10 .pt-seat-7 { --x: 22%; --y: 76.5%; }
+.pt-n10 .pt-puck-7 { --x: 31.9%; --y: 69.6%; }
+.pt-n10 .pt-seat-8 { --x: 13.4%; --y: 55.8%; }
+.pt-n10 .pt-puck-8 { --x: 26.2%; --y: 54.3%; }
+.pt-n10 .pt-seat-9 { --x: 16.3%; --y: 33.2%; }
+.pt-n10 .pt-puck-9 { --x: 28.2%; --y: 37.5%; }
+.pt-n10 .pt-seat-10 { --x: 30%; --y: 15.9%; }
+.pt-n10 .pt-puck-10 { --x: 37%; --y: 24.8%; }
+
+/* Wide oval, once the table has room. */
+@container pt-table (min-width: 560px) {
+  .pt-n2 .pt-seat-1 { --x: 87.2%; --y: 70%; }
+  .pt-n2 .pt-puck-1 { --x: 74.9%; --y: 67.4%; }
+  .pt-n2 .pt-chips-1 { --x: 80.7%; --y: 63.6%; }
+  .pt-n2 .pt-seat-2 { --x: 12.8%; --y: 70%; }
+  .pt-n2 .pt-puck-2 { --x: 18.8%; --y: 58.6%; }
+  .pt-n2 .pt-chips-2 { --x: 21.1%; --y: 66.3%; }
+  .pt-n6 .pt-seat-1 { --x: 83.6%; --y: 25.1%; }
+  .pt-n6 .pt-puck-1 { --x: 79.3%; --y: 37.7%; }
+  .pt-n6 .pt-chips-1 { --x: 75.8%; --y: 30.1%; }
+  .pt-n6 .pt-seat-2 { --x: 91.9%; --y: 58.9%; }
+  .pt-n6 .pt-puck-2 { --x: 80.2%; --y: 60.7%; }
+  .pt-n6 .pt-chips-2 { --x: 84%; --y: 55.1%; }
+  .pt-n6 .pt-seat-3 { --x: 68.7%; --y: 86%; }
+  .pt-n6 .pt-puck-3 { --x: 58.4%; --y: 75.6%; }
+  .pt-n6 .pt-chips-3 { --x: 66.6%; --y: 76.3%; }
+  .pt-n6 .pt-seat-4 { --x: 31.3%; --y: 86%; }
+  .pt-n6 .pt-puck-4 { --x: 30.3%; --y: 71.2%; }
+  .pt-n6 .pt-chips-4 { --x: 36.7%; --y: 77.7%; }
+  .pt-n6 .pt-seat-5 { --x: 8.1%; --y: 58.9%; }
+  .pt-n6 .pt-puck-5 { --x: 17%; --y: 50.9%; }
+  .pt-n6 .pt-chips-5 { --x: 16.8%; --y: 58.2%; }
+  .pt-n6 .pt-seat-6 { --x: 16.4%; --y: 25.1%; }
+  .pt-n6 .pt-puck-6 { --x: 28.6%; --y: 29.8%; }
+  .pt-n6 .pt-chips-6 { --x: 21.9%; --y: 32.5%; }
+  .pt-n7 .pt-seat-1 { --x: 80.4%; --y: 21.7%; }
+  .pt-n7 .pt-puck-1 { --x: 77.4%; --y: 35.2%; }
+  .pt-n7 .pt-chips-1 { --x: 73.1%; --y: 27.7%; }
+  .pt-n7 .pt-seat-2 { --x: 93%; --y: 50%; }
+  .pt-n7 .pt-puck-2 { --x: 82.4%; --y: 55.1%; }
+  .pt-n7 .pt-chips-2 { --x: 84.5%; --y: 48.4%; }
+  .pt-n7 .pt-seat-3 { --x: 80.4%; --y: 78.3%; }
+  .pt-n7 .pt-puck-3 { --x: 68.5%; --y: 72%; }
+  .pt-n7 .pt-chips-3 { --x: 75.6%; --y: 70.1%; }
+  .pt-n7 .pt-seat-4 { --x: 50%; --y: 90%; }
+  .pt-n7 .pt-puck-4 { --x: 43.7%; --y: 76%; }
+  .pt-n7 .pt-chips-4 { --x: 51.8%; --y: 80%; }
+  .pt-n7 .pt-seat-5 { --x: 19.6%; --y: 78.3%; }
+  .pt-n7 .pt-puck-5 { --x: 22.6%; --y: 64.8%; }
+  .pt-n7 .pt-chips-5 { --x: 26.9%; --y: 72.3%; }
+  .pt-n7 .pt-seat-6 { --x: 7%; --y: 50%; }
+  .pt-n7 .pt-puck-6 { --x: 17.6%; --y: 44.9%; }
+  .pt-n7 .pt-chips-6 { --x: 15.5%; --y: 51.6%; }
+  .pt-n7 .pt-seat-7 { --x: 19.6%; --y: 21.7%; }
+  .pt-n7 .pt-puck-7 { --x: 31.5%; --y: 28%; }
+  .pt-n7 .pt-chips-7 { --x: 24.4%; --y: 29.9%; }
+  .pt-n8 .pt-seat-1 { --x: 77.6%; --y: 19.4%; }
+  .pt-n8 .pt-puck-1 { --x: 75.6%; --y: 33.3%; }
+  .pt-n8 .pt-chips-1 { --x: 70.8%; --y: 26%; }
+  .pt-n8 .pt-seat-2 { --x: 92.3%; --y: 43.1%; }
+  .pt-n8 .pt-puck-2 { --x: 83%; --y: 50.5%; }
+  .pt-n8 .pt-chips-2 { --x: 83.6%; --y: 43.3%; }
+  .pt-n8 .pt-seat-3 { --x: 87.2%; --y: 70%; }
+  .pt-n8 .pt-puck-3 { --x: 74.9%; --y: 67.4%; }
+  .pt-n8 .pt-chips-3 { --x: 80.7%; --y: 63.6%; }
+  .pt-n8 .pt-seat-4 { --x: 64.7%; --y: 87.6%; }
+  .pt-n8 .pt-puck-4 { --x: 55.2%; --y: 76.2%; }
+  .pt-n8 .pt-chips-4 { --x: 63.5%; --y: 77.6%; }
+  .pt-n8 .pt-seat-5 { --x: 35.3%; --y: 87.6%; }
+  .pt-n8 .pt-puck-5 { --x: 33%; --y: 72.7%; }
+  .pt-n8 .pt-chips-5 { --x: 39.9%; --y: 78.7%; }
+  .pt-n8 .pt-seat-6 { --x: 12.8%; --y: 70%; }
+  .pt-n8 .pt-puck-6 { --x: 18.8%; --y: 58.6%; }
+  .pt-n8 .pt-chips-6 { --x: 21.1%; --y: 66.3%; }
+  .pt-n8 .pt-seat-7 { --x: 7.7%; --y: 43.1%; }
+  .pt-n8 .pt-puck-7 { --x: 19.2%; --y: 40.5%; }
+  .pt-n8 .pt-chips-7 { --x: 15.8%; --y: 46.3%; }
+  .pt-n8 .pt-seat-8 { --x: 22.4%; --y: 19.4%; }
+  .pt-n8 .pt-puck-8 { --x: 34%; --y: 26.8%; }
+  .pt-n8 .pt-chips-8 { --x: 26.5%; --y: 28.1%; }
+  .pt-n9 .pt-seat-1 { --x: 75.3%; --y: 17.6%; }
+  .pt-n9 .pt-puck-1 { --x: 74.1%; --y: 31.9%; }
+  .pt-n9 .pt-chips-1 { --x: 68.8%; --y: 24.8%; }
+  .pt-n9 .pt-seat-2 { --x: 90.9%; --y: 37.6%; }
+  .pt-n9 .pt-puck-2 { --x: 82.8%; --y: 46.8%; }
+  .pt-n9 .pt-chips-2 { --x: 82.2%; --y: 39.2%; }
+  .pt-n9 .pt-seat-3 { --x: 90.9%; --y: 62.4%; }
+  .pt-n9 .pt-puck-3 { --x: 78.9%; --y: 62.8%; }
+  .pt-n9 .pt-chips-3 { --x: 83.3%; --y: 57.8%; }
+  .pt-n9 .pt-seat-4 { --x: 75.3%; --y: 82.4%; }
+  .pt-n9 .pt-puck-4 { --x: 63.9%; --y: 74%; }
+  .pt-n9 .pt-chips-4 { --x: 71.7%; --y: 73.3%; }
+  .pt-n9 .pt-seat-5 { --x: 50%; --y: 90%; }
+  .pt-n9 .pt-puck-5 { --x: 43.7%; --y: 76%; }
+  .pt-n9 .pt-chips-5 { --x: 51.8%; --y: 80%; }
+  .pt-n9 .pt-seat-6 { --x: 24.7%; --y: 82.4%; }
+  .pt-n9 .pt-puck-6 { --x: 25.9%; --y: 68.1%; }
+  .pt-n9 .pt-chips-6 { --x: 31.2%; --y: 75.2%; }
+  .pt-n9 .pt-seat-7 { --x: 9.1%; --y: 62.4%; }
+  .pt-n9 .pt-puck-7 { --x: 17.2%; --y: 53.2%; }
+  .pt-n9 .pt-chips-7 { --x: 17.8%; --y: 60.8%; }
+  .pt-n9 .pt-seat-8 { --x: 9.1%; --y: 37.6%; }
+  .pt-n9 .pt-puck-8 { --x: 21.1%; --y: 37.2%; }
+  .pt-n9 .pt-chips-8 { --x: 16.7%; --y: 42.2%; }
+  .pt-n9 .pt-seat-9 { --x: 24.7%; --y: 17.6%; }
+  .pt-n9 .pt-puck-9 { --x: 36.1%; --y: 26%; }
+  .pt-n9 .pt-chips-9 { --x: 28.3%; --y: 26.7%; }
+  .pt-n10 .pt-seat-1 { --x: 73.2%; --y: 16.3%; }
+  .pt-n10 .pt-puck-1 { --x: 72.8%; --y: 30.9%; }
+  .pt-n10 .pt-chips-1 { --x: 67.1%; --y: 23.9%; }
+  .pt-n10 .pt-seat-2 { --x: 89.1%; --y: 33.4%; }
+  .pt-n10 .pt-puck-2 { --x: 82.1%; --y: 43.8%; }
+  .pt-n10 .pt-chips-2 { --x: 80.6%; --y: 36.1%; }
+  .pt-n10 .pt-seat-3 { --x: 92.6%; --y: 55.7%; }
+  .pt-n10 .pt-puck-3 { --x: 81.2%; --y: 58.7%; }
+  .pt-n10 .pt-chips-3 { --x: 84.4%; --y: 52.7%; }
+  .pt-n10 .pt-seat-4 { --x: 82.5%; --y: 76.2%; }
+  .pt-n10 .pt-puck-4 { --x: 70.4%; --y: 70.9%; }
+  .pt-n10 .pt-chips-4 { --x: 77.2%; --y: 68.4%; }
+  .pt-n10 .pt-seat-5 { --x: 62.1%; --y: 88.4%; }
+  .pt-n10 .pt-puck-5 { --x: 53.1%; --y: 76.4%; }
+  .pt-n10 .pt-chips-5 { --x: 61.4%; --y: 78.3%; }
+  .pt-n10 .pt-seat-6 { --x: 37.9%; --y: 88.4%; }
+  .pt-n10 .pt-puck-6 { --x: 34.8%; --y: 73.5%; }
+  .pt-n10 .pt-chips-6 { --x: 42%; --y: 79.2%; }
+  .pt-n10 .pt-seat-7 { --x: 17.5%; --y: 76.2%; }
+  .pt-n10 .pt-puck-7 { --x: 21.4%; --y: 63.2%; }
+  .pt-n10 .pt-chips-7 { --x: 25.1%; --y: 70.8%; }
+  .pt-n10 .pt-seat-8 { --x: 7.4%; --y: 55.7%; }
+  .pt-n10 .pt-puck-8 { --x: 17%; --y: 48.7%; }
+  .pt-n10 .pt-chips-8 { --x: 16.2%; --y: 55.8%; }
+  .pt-n10 .pt-seat-9 { --x: 10.9%; --y: 33.4%; }
+  .pt-n10 .pt-puck-9 { --x: 23.1%; --y: 34.6%; }
+  .pt-n10 .pt-chips-9 { --x: 17.9%; --y: 39%; }
+  .pt-n10 .pt-seat-10 { --x: 26.8%; --y: 16.3%; }
+  .pt-n10 .pt-puck-10 { --x: 37.8%; --y: 25.4%; }
+  .pt-n10 .pt-chips-10 { --x: 29.9%; --y: 25.6%; }
+}

@@ -14,6 +14,7 @@ import { cannotMarkEmpty, seatHero, setSeatStatus } from '../domain/poker/occupa
 import { TABLE_SIZES } from '../domain/poker/positions'
 import { describeTable, positionName, resizeTable, seatLabel, tableSummary } from '../domain/poker/tableView'
 import { useStore } from '../store/context'
+import { gameShort } from '../utils/labels'
 import { useActiveSession } from '../store/useActiveSession'
 
 /** The "Table" tab: the live table of whichever session is being played. */
@@ -45,12 +46,6 @@ export function TableRoute() {
   }
 
   return <TableScreen session={session} />
-}
-
-const GAME_SHORT: Record<string, string> = {
-  "No-Limit Hold'em": 'NLH',
-  'Pot-Limit Omaha': 'PLO',
-  "Limit Hold'em": 'LHE',
 }
 
 /**
@@ -190,7 +185,7 @@ function TableScreen({ session }: { session: Session }) {
     setStatus(`Seat ${seat} saved.`)
   }
 
-  const gameShort = GAME_SHORT[session.gameType] ?? session.gameType
+  const gameAbbrev = gameShort(session.gameType)
 
   return (
     <div className="mx-auto w-full max-w-[1240px] px-3 pb-8 pt-3 sm:px-5">
@@ -198,7 +193,7 @@ function TableScreen({ session }: { session: Session }) {
         <div className="min-w-0">
           <h1 className="truncate text-xl font-semibold tracking-tight">{session.location || 'Unnamed room'}</h1>
           <p className="text-sm text-room-400">
-            {stakesLabel(session)} {gameShort} · {seatCount}-handed
+            {stakesLabel(session)} {gameAbbrev} · {seatCount}-handed
           </p>
         </div>
         <Link to={`/sessions/${session.id}`} className="btn-ghost shrink-0 text-sm">
@@ -254,7 +249,7 @@ function TableScreen({ session }: { session: Session }) {
               ) : (
                 <>
                   <strong>
-                    {stakesLabel(session)} {gameShort}
+                    {stakesLabel(session)} {gameAbbrev}
                   </strong>
                   {blinds.sb !== undefined && blinds.bb !== undefined && `SB seat ${blinds.sb} · BB seat ${blinds.bb}`}
                 </>

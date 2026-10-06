@@ -33,6 +33,11 @@
   /* Muted result colours: never the only signal, always paired with a sign. */
   --color-gain: #5fc596;
   --color-loss: #dd7a6f;
+  /* Brass: the bankroll's own accent, kept apart from result green/red. */
+  --color-brass-200: #e8d6b0;
+  --color-brass-300: #d6b98a;
+  --color-brass-400: #c4a066;
+  --color-brass-600: #85693d;
 
   --font-sans:
     ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;

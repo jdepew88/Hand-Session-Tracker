@@ -116,12 +116,12 @@ export function parseHandExport(
   }
 
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-    throw new ValidationError(['That file does not contain a HandForge hand.'])
+    throw new ValidationError(['That file does not contain a SessionTracker hand.'])
   }
 
   const root = parsed as Record<string, unknown>
   if (root.kind !== HAND_EXPORT_KIND) {
-    issues.push('That file is not a HandForge hand export.')
+    issues.push('That file is not a SessionTracker hand export.')
   }
   if (root.schemaVersion !== SCHEMA_VERSION) {
     issues.push(

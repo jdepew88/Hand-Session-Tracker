@@ -65,7 +65,7 @@ export function SiteHeader() {
       <div className="mx-auto flex h-16 max-w-[1360px] items-center gap-8 px-4 sm:px-6 lg:px-10">
         <Link to="/" className="flex items-center gap-2.5 rounded-md text-[1.15rem] font-semibold tracking-tight text-bone-50">
           <Logo />
-          HandForge
+          SessionTracker
         </Link>
 
         <nav aria-label="Site" className="hidden md:block">

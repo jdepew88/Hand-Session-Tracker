@@ -184,7 +184,7 @@ export function HomePage() {
 
       <footer className="border-t border-white/[0.06]">
         <div className="mx-auto flex max-w-[1360px] flex-wrap items-center justify-between gap-3 px-4 py-6 text-xs text-room-500 sm:px-6 lg:px-10">
-          <span>HandForge — live hand reconstruction for No-Limit Hold&rsquo;em.</span>
+          <span>SessionTracker — live hand reconstruction for No-Limit Hold&rsquo;em.</span>
           <Link to="/sessions" className="text-room-400 hover:text-bone-50">
             Your sessions
           </Link>

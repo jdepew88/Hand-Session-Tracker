@@ -109,7 +109,7 @@ describe('imported JSON is untrusted', () => {
 
   it('rejects a foreign file shape', () => {
     expect(() => parseHandExport(JSON.stringify({ hello: 'world' }))).toThrow(
-      /not a HandForge hand export/,
+      /not a SessionTracker hand export/,
     )
   })
 

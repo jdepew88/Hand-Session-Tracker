@@ -7,16 +7,19 @@ export function Page({
   subtitle,
   back,
   action,
+  wide = false,
   children,
 }: {
   title: string
   subtitle?: ReactNode
   back?: { to: string; label: string }
   action?: ReactNode
+  /** Dashboards (Results) use the wider frame on large screens. */
+  wide?: boolean
   children: ReactNode
 }) {
   return (
-    <div className="mx-auto w-full max-w-2xl px-3 pt-3">
+    <div className={`mx-auto w-full px-3 pt-3 ${wide ? 'max-w-6xl sm:px-5 lg:pt-6' : 'max-w-2xl'}`}>
       <header className="mb-4">
         {back && (
           <Link

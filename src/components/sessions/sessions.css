@@ -1,0 +1,114 @@
+/*
+ * The session journal: cards, the live marker and the read-only table
+ * snapshot. Class-based only (the CSP forbids `style` attributes); the
+ * snapshot reuses the table's own seat geometry (`.pt-nN .pt-seat-S`).
+ */
+
+/* The whole card opens the session; its action buttons sit above the link. */
+.sj-card {
+  position: relative;
+}
+
+.sj-card__link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+}
+
+.sj-card__link:focus-visible {
+  outline: none;
+}
+
+.sj-card__link:focus-visible::after {
+  outline: 2px solid var(--color-felt-400);
+  outline-offset: 2px;
+}
+
+.sj-card__actions {
+  position: relative;
+  z-index: 2;
+}
+
+/* Live sessions get a felt-tinted surface and a steady dot: no pulsing. */
+.sj-card--live {
+  border-color: rgba(47, 189, 131, 0.38);
+  background:
+    radial-gradient(120% 90% at 0% 0%, rgba(26, 76, 58, 0.55), transparent 60%),
+    var(--color-room-900);
+}
+
+.sj-live-dot {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--color-felt-400);
+  box-shadow: 0 0 0 3px rgba(47, 189, 131, 0.18);
+}
+
+/* ------------------------------------------------------ table glyph ---- */
+
+.sj-glyph__rail {
+  fill: #18191b;
+  stroke: rgba(241, 237, 228, 0.14);
+}
+
+.sj-glyph__felt {
+  fill: #1a4c3a;
+}
+
+.sj-glyph__seat {
+  fill: var(--color-room-400);
+}
+
+/* --------------------------------------------------- table snapshot ---- */
+
+.sj-snapshot .pt-table .hf-rail {
+  inset: 13% 15%;
+}
+
+.sj-seat {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 2.1em;
+  height: 2.1em;
+  border-radius: 999px;
+  border: 1px solid rgba(241, 237, 228, 0.3);
+  background: rgba(13, 17, 19, 0.92);
+  color: var(--hf-steel);
+  font-size: clamp(9px, 5.4cqi, 12px);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.sj-seat--empty {
+  border-style: dashed;
+  background: rgba(13, 17, 19, 0.4);
+  color: var(--hf-steel-dim);
+}
+
+.sj-seat--hero {
+  border-color: rgba(47, 189, 131, 0.9);
+  background: rgba(12, 38, 28, 0.95);
+  color: #a9e3c7;
+}
+
+.sj-snapshot .pt-puck .hf-dealer-btn {
+  font-size: clamp(7px, 3.6cqi, 10px);
+}
+
+.sj-snapshot .pt-dealer-spot {
+  display: none;
+}
+
+/* The snapshot never animates: it is a still picture of the table. */
+.sj-snapshot .pt-puck {
+  transition: none;
+}

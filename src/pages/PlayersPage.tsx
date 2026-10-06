@@ -10,6 +10,7 @@ import {
   type PlayerProfile,
   type PlayerTagColor,
 } from '../domain/poker/models'
+import { occupiedSeats } from '../domain/poker/occupancy'
 import { derivePositions } from '../domain/poker/positions'
 import { useStore } from '../store/context'
 
@@ -71,10 +72,7 @@ export function PlayersPage() {
   const positions =
     session.buttonSeat === null
       ? new Map<number, string>()
-      : derivePositions(
-          draft.map((player) => player.seat ?? 0),
-          session.buttonSeat,
-        )
+      : derivePositions(occupiedSeats(session), session.buttonSeat)
 
   const update = (id: string, patch: Partial<PlayerProfile>) => {
     setSaved(false)

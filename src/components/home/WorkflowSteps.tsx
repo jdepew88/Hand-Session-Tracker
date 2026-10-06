@@ -12,7 +12,8 @@ import {
   TURN,
   VILLAIN_CARDS,
 } from './demoHand'
-import { DealerButton, FeltCard } from './TableBits'
+import { FeltCard } from '../table/Cards'
+import { DealerButton } from '../table/DealerButton'
 import { useReveal } from './useReveal'
 
 /** The four stages of reconstructing a hand, told with the homepage's demo hand. */

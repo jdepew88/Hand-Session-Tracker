@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { EmptyState, Page } from '../components/Page'
-import { createHandRecord, createHandSetup, defaultSeats } from '../domain/poker/factories'
+import { createHandRecord, createHandSetup } from '../domain/poker/factories'
+import { newHandSeating } from '../domain/poker/occupancy'
 import { isHandInProgress } from '../domain/poker/lifecycle'
 import { useActiveSession } from '../store/useActiveSession'
 import { useStore } from '../store/context'
@@ -54,12 +55,8 @@ export function RecordRoute() {
   const start = async () => {
     if (starting) return
     setStarting(true)
-    const setup = createHandSetup({
-      session,
-      buttonSeat: session.buttonSeat ?? session.tableSize,
-      heroSeat: session.heroSeat ?? 1,
-      seats: defaultSeats(session.tableSize, session.startingStack, lineup),
-    })
+    // Only occupied seats are dealt in; the setup screen confirms the rest.
+    const setup = createHandSetup({ session, ...newHandSeating(session, lineup) })
     const record = createHandRecord(session, setup, nextNumber)
     await saveHand(record)
     void navigate(`/hands/${record.id}`, { replace: true })

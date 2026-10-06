@@ -56,6 +56,9 @@ export function createSession(input: NewSessionInput): Session {
     rake: input.rake ?? NO_RAKE,
     heroSeat: input.heroSeat ?? null,
     buttonSeat: input.buttonSeat ?? null,
+    seatStatus: Object.fromEntries(
+      Array.from({ length: input.tableSize }, (_, index) => [index + 1, 'occupied'] as const),
+    ),
     notes: input.notes ?? '',
   }
 }

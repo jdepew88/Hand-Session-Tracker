@@ -1,12 +1,20 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { useStore } from '../store/context'
 
+export const SETTINGS_ICON = 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM4 12h2m12 0h2M12 4v2m0 12v2'
+
+/**
+ * Five tabs on a phone, six from `sm` up. Settings is visited rarely (defaults,
+ * rake presets, import), so on a phone it moves to a gear on the Sessions
+ * header instead of squeezing six labels into 320px.
+ */
 const NAV = [
-  { to: '/sessions', label: 'Sessions', end: true, icon: 'M4 6h16M4 12h16M4 18h10' },
-  { to: '/table', label: 'Table', end: false, icon: 'M3 12a9 5 0 1 0 18 0a9 5 0 1 0 -18 0' },
-  { to: '/record', label: 'Record', end: false, icon: 'M12 5v14M5 12h14' },
-  { to: '/hands', label: 'Hands', end: false, icon: 'M5 8h9v11H5zM10 5h9v11' },
-  { to: '/settings', label: 'Settings', end: false, icon: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM4 12h2m12 0h2M12 4v2m0 12v2' },
+  { to: '/sessions', label: 'Sessions', end: true, icon: 'M4 6h16M4 12h16M4 18h10', wideOnly: false },
+  { to: '/table', label: 'Table', end: false, icon: 'M3 12a9 5 0 1 0 18 0a9 5 0 1 0 -18 0', wideOnly: false },
+  { to: '/record', label: 'Record', end: false, icon: 'M12 5v14M5 12h14', wideOnly: false },
+  { to: '/hands', label: 'Hands', end: false, icon: 'M5 8h9v11H5zM10 5h9v11', wideOnly: false },
+  { to: '/results', label: 'Results', end: false, icon: 'M4 19h16M5 15l4.5-4.5 3.5 3.5L19 7M15 7h4v4', wideOnly: false },
+  { to: '/settings', label: 'Settings', end: false, icon: SETTINGS_ICON, wideOnly: true },
 ]
 
 /**
@@ -44,7 +52,7 @@ export function AppShell() {
       >
         <ul className="mx-auto flex max-w-2xl">
           {NAV.map((item) => (
-            <li key={item.to} className="flex-1">
+            <li key={item.to} className={item.wideOnly ? 'hidden flex-1 sm:block' : 'flex-1'}>
               <NavLink
                 to={item.to}
                 end={item.end}

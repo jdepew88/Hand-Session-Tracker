@@ -226,7 +226,8 @@ describe('hand history and settings', () => {
   it('renders settings with the built-in rake presets', async () => {
     renderApp('/settings')
     expect(await screen.findByText('Rake presets')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'No rake' })).toBeTruthy()
+    // The heading renders before the presets load; wait for them.
+    expect(await screen.findByRole('button', { name: 'No rake' })).toBeTruthy()
   })
 
   it('sends someone with no session to the session flow', async () => {

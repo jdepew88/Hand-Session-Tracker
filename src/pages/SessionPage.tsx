@@ -6,7 +6,7 @@ import { RESULT_TONE_CLASS, buyInText, durationText, handCountText, resultDispla
 import { TableSnapshot } from '../components/sessions/TableSnapshot'
 import { formatCents, type Cents } from '../domain/money'
 import { newId, stakesLabel } from '../domain/poker/factories'
-import { deriveHand } from '../domain/poker/lifecycle'
+import { heroOutcome, heroResultOf } from '../domain/poker/lifecycle'
 import { rakeStructureSummary } from '../domain/poker/rake'
 import { summarizeSession, type SessionSummary } from '../domain/poker/sessionSummary'
 import { describeTable, positionName } from '../domain/poker/tableView'
@@ -35,9 +35,10 @@ export function SessionPage() {
     let won = 0
     let favorites = 0
     for (const hand of sessionHands) {
-      const { result } = deriveHand(hand)
-      recordedNet += result.heroResult
-      if (result.winners.includes(hand.setup.heroSeat)) won += 1
+      // Reconstructed hands without enough detail have no figure to add.
+      recordedNet += heroResultOf(hand) ?? 0
+      const outcome = heroOutcome(hand)
+      if (outcome === 'won' || outcome === 'split') won += 1
       if (hand.favorite) favorites += 1
     }
     return { recordedNet, won, favorites }
@@ -163,7 +164,7 @@ export function SessionPage() {
 
         <div className="grid grid-cols-2 gap-2">
           <Link to={`/sessions/${session.id}/players`} className="btn-secondary h-12">
-            Table lineup
+            Players
           </Link>
           <button
             type="button"

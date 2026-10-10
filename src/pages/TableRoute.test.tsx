@@ -158,7 +158,7 @@ describe('table screen', () => {
     fireEvent.click(await screen.findByRole('button', { name: /^Seat 7,/ }))
     fireEvent.change(screen.getByLabelText('Player'), { target: { value: 'Old Man Coffee' } })
     fireEvent.change(screen.getByLabelText('Stack'), { target: { value: '310' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save seat' }))
+    fireEvent.click(screen.getAllByRole('button', { name: 'Save player' })[0]!)
 
     await waitFor(async () => {
       const lineup = await indexedDbRepositories.players.listAll()
@@ -193,8 +193,10 @@ describe('table screen', () => {
     expect(screen.queryByRole('button', { name: 'I sit here' })).toBeNull()
   })
 
-  it('marks a seat empty and seats a player there again, keeping its number and lineup entry', async () => {
-    const session = await seed({ buttonSeat: 9 }, (s) => [{ ...createPlayer(s.id, 4), nickname: 'Sunglasses' }])
+  it('marks a seat empty: the player leaves with their notes, and a new player starts clean', async () => {
+    const session = await seed({ buttonSeat: 9 }, (s) => [
+      { ...createPlayer(s.id, 4), nickname: 'Sunglasses', notes: 'Bluffed river with missed clubs.', tags: ['Aggressive'] },
+    ])
     renderTable()
     fireEvent.click(await screen.findByRole('button', { name: /^Seat 4,/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Mark seat empty' }))
@@ -210,13 +212,36 @@ describe('table screen', () => {
     expect(seat(5).getAttribute('aria-label')).toContain('Under the gun plus 1')
     expect(screen.getByText('8 of 9')).toBeTruthy()
     expect(screen.queryByLabelText('Player')).toBeNull()
-    // The lineup entry is kept.
-    expect((await indexedDbRepositories.players.listAll())[0]).toMatchObject({ seat: 4, nickname: 'Sunglasses' })
+    expect(screen.getByRole('status').textContent).toContain('Sunglasses has left; their notes stay with this session.')
+    // The person has left, notes and all; nobody is deleted.
+    await waitFor(async () =>
+      expect((await indexedDbRepositories.players.listAll())[0]).toMatchObject({
+        seat: null,
+        nickname: 'Sunglasses',
+        notes: 'Bluffed river with missed clubs.',
+      }),
+    )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Seat player here' }))
+    // A new person in the same chair is not Sunglasses.
+    fireEvent.click(screen.getByRole('button', { name: 'Seat a new player here' }))
     await waitFor(async () => expect((await stored(session.id)).seatStatus[4]).toBe('occupied'))
-    await waitFor(() => expect(seat(4).getAttribute('aria-label')).toContain('Sunglasses'))
-    expect(seat(4).className).not.toContain('pt-seat--empty')
+    await waitFor(() => expect(seat(4).getAttribute('aria-label')).toMatch(/^Seat 4, .*no player details$/))
+    expect(seat(4).getAttribute('aria-label')).not.toContain('Sunglasses')
+    expect(screen.getByLabelText('Player')).toHaveProperty('value', '')
+    expect(screen.getByLabelText('Notes')).toHaveProperty('value', '')
+  })
+
+  it('brings back a player who left, with their notes', async () => {
+    const session = await seed({ buttonSeat: 9 }, (s) => [
+      { ...createPlayer(s.id, 4), seat: null, leftAt: '2026-10-08T01:00:00.000Z', nickname: 'Sunglasses', notes: 'Sticky.' },
+    ])
+    await indexedDbRepositories.sessions.save({ ...session, seatStatus: { ...session.seatStatus, 7: 'empty' } })
+    renderTable()
+    fireEvent.click(await screen.findByRole('button', { name: /^Seat 7, empty/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Sunglasses/ }))
+    await waitFor(() => expect(seat(7).getAttribute('aria-label')).toContain('Sunglasses'))
+    expect((await indexedDbRepositories.players.listAll())[0]).toMatchObject({ seat: 7, leftAt: null, notes: 'Sticky.' })
+    expect((await stored(session.id)).seatStatus[7]).toBe('occupied')
   })
 
   it("clears your seat when it is marked empty, and seats you in an empty one", async () => {
@@ -283,5 +308,132 @@ describe('table screen', () => {
     const group = await screen.findByRole('group', { name: 'Seats' })
     const summary = document.getElementById(group.getAttribute('aria-describedby')!)!
     expect(summary.textContent).toContain('You are in seat 3, under the gun. The dealer button is on seat 9.')
+  })
+})
+
+describe('player identity at the table', () => {
+  const saveButton = () => screen.getAllByRole('button', { name: 'Save player' })[0]!
+  const player = async () => (await indexedDbRepositories.players.listAll())[0]!
+
+  it('labels a player, tags them, takes notes, and keeps it all after a reload', async () => {
+    const session = await seed({ buttonSeat: 9 })
+    renderTable()
+    fireEvent.click(await screen.findByRole('button', { name: /^Seat 4,/ }))
+    expect(screen.getByRole('heading', { name: 'Who is here?' })).toBeTruthy()
+
+    fireEvent.change(screen.getByLabelText('Player'), { target: { value: 'Old Man Coffee' } })
+    const tags = screen.getByRole('group', { name: 'Tags' })
+    fireEvent.click(within(tags).getByRole('button', { name: 'Passive' }))
+    fireEvent.click(within(tags).getByRole('button', { name: 'Tight' }))
+    fireEvent.click(within(tags).getByRole('button', { name: /Loose/ }))
+    fireEvent.click(within(tags).getByRole('button', { name: /Loose/ }))
+    expect(within(tags).getByRole('button', { name: /Tight/ }).getAttribute('aria-pressed')).toBe('true')
+    expect(within(tags).getByRole('button', { name: /Loose/ }).getAttribute('aria-pressed')).toBe('false')
+    fireEvent.change(screen.getByLabelText('Notes'), { target: { value: 'Limp-calls too much.\nFolded twice to river pressure.' } })
+    fireEvent.click(saveButton())
+
+    await waitFor(async () =>
+      expect(await player()).toMatchObject({
+        sessionId: session.id,
+        seat: 4,
+        nickname: 'Old Man Coffee',
+        tags: ['Tight', 'Passive'],
+        notes: 'Limp-calls too much.\nFolded twice to river pressure.',
+      }),
+    )
+    expect((await player()).notesUpdatedAt).toBeTruthy()
+    await waitFor(() =>
+      expect(seat(4).getAttribute('aria-label')).toBe('Seat 4, Under the gun plus 1, Old Man Coffee, Tight and Passive, stack $500'),
+    )
+    cleanup()
+
+    renderTable()
+    fireEvent.click(await screen.findByRole('button', { name: /^Seat 4, .*Old Man Coffee/ }))
+    // The compact card first; notes and editing behind one tap. (The seat on the felt shows the name too.)
+    expect(screen.getByText('Old Man Coffee', { selector: 'p' })).toBeTruthy()
+    expect(screen.getByText('Tight · Passive')).toBeTruthy()
+    expect(screen.getByText(/Limp-calls too much/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit player and notes' }))
+    fireEvent.click(within(screen.getByRole('group', { name: 'Tags' })).getByRole('button', { name: /Tight/ }))
+    fireEvent.click(saveButton())
+    await waitFor(async () => expect((await player()).tags).toEqual(['Passive']))
+  })
+
+  it('keeps notes on Hero too', async () => {
+    await seed({ heroSeat: 3, buttonSeat: 9 })
+    renderTable()
+    fireEvent.click(await screen.findByRole('button', { name: /^Seat 3,/ }))
+    expect(screen.getByRole('heading', { name: 'You' })).toBeTruthy()
+    expect(screen.getByLabelText('Player').getAttribute('placeholder')).toBe('You')
+    fireEvent.change(screen.getByLabelText('Notes'), { target: { value: 'Tired. Tighten up.' } })
+    fireEvent.click(saveButton())
+    await waitFor(async () => expect(await player()).toMatchObject({ seat: 3, notes: 'Tired. Tighten up.' }))
+    expect(seat(3).getAttribute('aria-label')).toContain('you')
+  })
+
+  it('moves a player to an empty seat with their label, notes and stack', async () => {
+    const session = await seed({ buttonSeat: 9, seatStatus: { 7: 'empty' } }, (s) => [
+      { ...createPlayer(s.id, 4), nickname: 'Hoodie Guy', notes: 'Aggro.', tags: ['Aggressive'], currentStack: 64_000 },
+    ])
+    renderTable()
+    fireEvent.click(await screen.findByRole('button', { name: /^Seat 4,/ }))
+    fireEvent.change(screen.getByLabelText('Moved to'), { target: { value: '7' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Move' }))
+
+    await waitFor(async () => expect(await player()).toMatchObject({ seat: 7, nickname: 'Hoodie Guy', notes: 'Aggro.', currentStack: 64_000 }))
+    await waitFor(async () => expect((await stored(session.id)).seatStatus).toMatchObject({ 4: 'empty', 7: 'occupied' }))
+    await waitFor(() => expect(seat(7).getAttribute('aria-label')).toContain('Hoodie Guy, Aggressive, stack $640'))
+    expect(seat(4).getAttribute('aria-label')).toBe('Seat 4, empty')
+    expect(screen.getByRole('status').textContent).toBe('Hoodie Guy moved from seat 4 to seat 7. Seat 4 is empty.')
+  })
+
+  it('reads a player saved before tags existed', async () => {
+    await seed({ buttonSeat: 9 }, (s) => {
+      const old = { ...createPlayer(s.id, 2), nickname: 'Grey Hoodie', archetype: 'Tight Aggressive' as const }
+      delete old.tags
+      delete old.aliases
+      delete old.notesUpdatedAt
+      delete old.leftAt
+      return [old]
+    })
+    renderTable()
+    const named = await screen.findByRole('button', { name: /^Seat 2,/ })
+    expect(named.getAttribute('aria-label')).toBe('Seat 2, Big blind, Grey Hoodie, Tight and Aggressive, stack $500')
+    fireEvent.click(named)
+    expect(screen.getByText('Tight · Aggressive')).toBeTruthy()
+  })
+
+  it('puts Save above the notes, so the phone keyboard cannot hide it', async () => {
+    await seed({ buttonSeat: 9 })
+    renderTable()
+    fireEvent.click(await screen.findByRole('button', { name: /^Seat 4,/ }))
+    const [top] = screen.getAllByRole('button', { name: 'Save player' })
+    const notes = screen.getByLabelText('Notes')
+    expect(top!.compareDocumentPosition(notes) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+})
+
+describe('players page', () => {
+  it('lists who is at the table and who has left, without inventing players for empty chairs', async () => {
+    const session = await seed({ buttonSeat: 9, seatStatus: { 7: 'empty' } }, (s) => [
+      { ...createPlayer(s.id, 4), nickname: 'Old Man Coffee', tags: ['Tight'] },
+      { ...createPlayer(s.id, 6), seat: null, leftAt: '2026-10-08T01:00:00.000Z', nickname: 'Hoodie Guy', notes: 'Bluffed river.' },
+    ])
+    render(
+      <MemoryRouter initialEntries={[`/sessions/${session.id}/players`]}>
+        <StoreProvider repositories={indexedDbRepositories}>
+          <App />
+        </StoreProvider>
+      </MemoryRouter>,
+    )
+    const seated = await screen.findByRole('heading', { name: 'At the table' })
+    const atTable = seated.parentElement!
+    expect(within(atTable).getAllByRole('listitem')).toHaveLength(8)
+    expect(within(atTable).getByText('Old Man Coffee')).toBeTruthy()
+    const left = screen.getByRole('heading', { name: 'Left the table' }).parentElement!
+    expect(within(left).getByText('Hoodie Guy')).toBeTruthy()
+    expect(within(left).getByText('Bluffed river.', { selector: 'p' })).toBeTruthy()
+    // Viewing the page writes nothing.
+    expect(await indexedDbRepositories.players.listAll()).toHaveLength(2)
   })
 })

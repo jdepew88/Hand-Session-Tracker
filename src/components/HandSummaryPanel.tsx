@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { formatCents } from '../domain/money'
 import { HAND_TAGS, type HandRecord, type HandResult } from '../domain/poker/models'
 import { handFilename, serializeHand } from '../domain/poker/serialize'
-import { generateSummary } from '../domain/poker/summary'
+import { handSummaryText } from '../domain/poker/summary'
 import { copyText, downloadTextFile } from '../utils/files'
 
 /**
@@ -13,15 +13,19 @@ export function HandSummaryPanel({
   record,
   result,
   onChange,
+  showText = true,
 }: {
   record: HandRecord
-  result: HandResult
+  /** Null when a reconstructed hand does not say enough to work the money out. */
+  result: HandResult | null
   onChange: (record: HandRecord) => void
+  /** Show the plain-text history. Off where the hand is already drawn street by street. */
+  showText?: boolean
 }) {
   const [copied, setCopied] = useState(false)
   const [customTag, setCustomTag] = useState('')
 
-  const summary = useMemo(() => generateSummary(record), [record])
+  const summary = useMemo(() => handSummaryText(record), [record])
 
   const toggleTag = (tag: string) =>
     onChange({
@@ -36,16 +40,20 @@ export function HandSummaryPanel({
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold">Hand summary</h2>
-          <p className="mt-0.5 text-sm tabular">
-            <span className={result.heroResult >= 0 ? 'text-felt-200' : 'text-chip-red'}>
-              {formatCents(result.heroResult, { sign: true })}
-            </span>
-            <span className="text-room-400">
-              {' '}
-              · gross {formatCents(result.grossPot)} · drop {formatCents(result.rake.total)} · net{' '}
-              {formatCents(result.netPot)}
-            </span>
-          </p>
+          {result && (
+            <p className="mt-0.5 text-sm tabular">
+              {!result.undetermined && (
+                <span className={result.heroResult >= 0 ? 'text-felt-200' : 'text-chip-red'}>
+                  {formatCents(result.heroResult, { sign: true })}
+                  {' · '}
+                </span>
+              )}
+              <span className="text-room-400">
+                gross {formatCents(result.grossPot)} · drop {formatCents(result.rake.total)} · net{' '}
+                {formatCents(result.netPot)}
+              </span>
+            </p>
+          )}
         </div>
         <button
           type="button"
@@ -61,9 +69,11 @@ export function HandSummaryPanel({
         </button>
       </div>
 
-      <pre className="card-surface overflow-x-auto whitespace-pre-wrap p-3 text-sm leading-relaxed">
-        {summary}
-      </pre>
+      {showText && (
+        <pre className="card-surface overflow-x-auto whitespace-pre-wrap p-3 text-sm leading-relaxed">
+          {summary}
+        </pre>
+      )}
 
       <div className="grid grid-cols-2 gap-2">
         <button

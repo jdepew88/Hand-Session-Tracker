@@ -1,9 +1,16 @@
 import type { Cents } from '../money'
 import type { Card } from './cards'
+import type { HandDraft } from './draft/model'
 import type { Position } from './positions'
 
-/** Bump when the persisted/exported shape changes incompatibly. */
-export const SCHEMA_VERSION = 1
+/**
+ * Bump when the persisted/exported shape changes. Version 2 added
+ * reconstructed hands; a hand without one still exports as version 1, so
+ * every file an older build could read, it still can.
+ */
+export const SCHEMA_VERSION = 2
+/** Export versions this build reads. */
+export const READABLE_SCHEMA_VERSIONS: readonly number[] = [1, 2]
 
 export type Street = 'preflop' | 'flop' | 'turn' | 'river'
 export const STREETS: Street[] = ['preflop', 'flop', 'turn', 'river']
@@ -280,6 +287,13 @@ export interface HandRecord {
   notes: string
   /** Denormalised session context so a single exported hand is self-describing. */
   context: HandContext
+  /**
+   * Hands recorded with Quick Reconstruct: the hand as remembered, which is
+   * then its source of truth (`events` stays empty; an exact event log is
+   * derived from it when it says enough). Absent on live-tracked hands and on
+   * every hand saved before reconstruction existed.
+   */
+  reconstruction?: HandDraft
 }
 
 /* -------------------------------------------------------------- session */
@@ -356,11 +370,27 @@ export type PlayerArchetype = (typeof PLAYER_ARCHETYPES)[number]
 export const PLAYER_TAG_COLORS = ['slate', 'red', 'amber', 'emerald', 'sky', 'violet'] as const
 export type PlayerTagColor = (typeof PLAYER_TAG_COLORS)[number]
 
+/**
+ * Quick tags: the player's own shorthand for someone at the table, a few at a
+ * time. Deliberately short; anything subtler goes in the notes.
+ */
+export const PLAYER_TAGS = ['Tight', 'Loose', 'Aggressive', 'Passive', 'Reg', 'Rec', 'Unknown'] as const
+export type PlayerTag = (typeof PLAYER_TAGS)[number]
+
+/**
+ * A person at the table -- not a seat. Seats are physical chairs; a player
+ * sits in one (`seat`), may move to another, and may leave (`seat: null`),
+ * after which a new person in that chair starts with a clean profile. Saved
+ * hands keep their own snapshot (`HandSeatSetup.playerId` / `label`), so
+ * nothing here ever changes a hand already recorded.
+ */
 export interface PlayerProfile {
   id: string
   /** Null is reserved for the cross-session profiles a future version will add. */
   sessionId: string | null
+  /** The chair the player is in now, or null once they have left the table. */
   seat: number | null
+  /** The display label: "Old Man Coffee", "Hoodie Guy", "Mike". */
   nickname: string
   archetype: PlayerArchetype
   customArchetype: string
@@ -370,6 +400,14 @@ export interface PlayerProfile {
   currentStack: Cents | null
   createdAt: string
   updatedAt: string
+  /** Absent on profiles saved before tags existed; read through `playerTags`. */
+  tags?: PlayerTag[]
+  /** Other names the player answers to at this table: "hoodie", "sunglasses guy". */
+  aliases?: string[]
+  /** When `notes` last changed. */
+  notesUpdatedAt?: string | null
+  /** When the player left the table. Null or absent while seated. */
+  leftAt?: string | null
 }
 
 export interface AppSettings {

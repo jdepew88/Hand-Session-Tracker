@@ -1,6 +1,9 @@
-import { SCHEMA_VERSION, type HandEvent, type HandRecord, type HandResult, type HandSetup } from './models'
+import { checkDraft } from './draft/check'
+import type { HandDraft } from './draft/model'
+import { parseDraft } from './draft/parse'
+import { deriveHand } from './lifecycle'
+import { READABLE_SCHEMA_VERSIONS, type HandEvent, type HandRecord, type HandResult, type HandSetup } from './models'
 import { replay } from './reducer'
-import { computeResult } from './showdown'
 import {
   MAX_IMPORT_BYTES,
   MAX_LABEL_LENGTH,
@@ -22,6 +25,10 @@ import {
  * convenience snapshot for tools that do not want to implement the engine, and
  * is deliberately ignored on import -- the imported hand is re-derived so a
  * tampered or stale snapshot can never corrupt accounting.
+ *
+ * A reconstructed hand (version 2) carries its `reconstruction` draft instead
+ * of an action log; its `result` is present only when the draft says enough
+ * to work the pot out, and is just as ignored on import.
  *
  * The root shape (`hand` / `table` / `players` / `actions` / `result`) leaves
  * obvious room for the session-level and batch exports planned for v2: those
@@ -50,17 +57,20 @@ export interface HandExportFile {
   table: Omit<HandSetup, 'seats'>
   players: HandSetup['seats']
   actions: HandEvent[]
-  /** Derived snapshot. Informational only; recomputed on import. */
-  result: HandResult & { board: string[] }
+  /** Version 2: the hand as remembered, for reconstructed hands. */
+  reconstruction?: HandDraft
+  /** Derived snapshot. Informational only; recomputed on import. Null when it cannot be worked out. */
+  result: (HandResult & { board: string[] }) | null
 }
 
 export function exportHand(record: HandRecord): HandExportFile {
   const { seats, ...table } = record.setup
-  const state = replay(record.setup, record.events)
-  const result = computeResult(record.setup, state, record.manualWinners)
+  const { state, result } = deriveHand(record)
 
   return {
-    schemaVersion: SCHEMA_VERSION,
+    // The lowest version that can hold the hand, so older builds still read
+    // every live-tracked hand.
+    schemaVersion: record.reconstruction ? 2 : 1,
     kind: HAND_EXPORT_KIND,
     exportedAt: new Date().toISOString(),
     hand: {
@@ -78,7 +88,8 @@ export function exportHand(record: HandRecord): HandExportFile {
     table,
     players: seats,
     actions: record.events,
-    result: { ...result, board: [...state.board] },
+    ...(record.reconstruction ? { reconstruction: record.reconstruction } : {}),
+    result: state && result ? { ...result, board: [...state.board] } : null,
   }
 }
 
@@ -123,10 +134,13 @@ export function parseHandExport(
   if (root.kind !== HAND_EXPORT_KIND) {
     issues.push('That file is not a SessionTracker hand export.')
   }
-  if (root.schemaVersion !== SCHEMA_VERSION) {
+  if (!READABLE_SCHEMA_VERSIONS.includes(root.schemaVersion as number)) {
     issues.push(
-      `Unsupported schema version ${String(root.schemaVersion)}. This build reads version ${SCHEMA_VERSION}.`,
+      `Unsupported schema version ${String(root.schemaVersion)}. This build reads versions ${READABLE_SCHEMA_VERSIONS.join(' and ')}.`,
     )
+  }
+  if (root.schemaVersion === 1 && root.reconstruction !== undefined) {
+    issues.push('A version 1 file cannot contain a reconstructed hand.')
   }
   if (issues.length > 0) throw new ValidationError(issues)
 
@@ -138,6 +152,13 @@ export function parseHandExport(
   const setup = parseHandSetup(root.table, root.players, issues)
   const events = parseEvents(root.actions, issues)
   assertNoDuplicateCards(setup, events, issues)
+
+  let reconstruction: HandDraft | undefined
+  if (root.reconstruction !== undefined && root.reconstruction !== null) {
+    reconstruction = parseDraft(root.reconstruction, issues) ?? undefined
+    if (events.length > 0) issues.push('A reconstructed hand cannot also have an action log.')
+    if (reconstruction && issues.length === 0) issues.push(...checkDraft(setup, reconstruction).errors)
+  }
 
   if (issues.length > 0) throw new ValidationError(issues)
 
@@ -175,10 +196,12 @@ export function parseHandExport(
       tableSize: setup.tableSize,
       heroPosition: sanitizeString(contextSource.heroPosition, 16),
     },
+    ...(reconstruction ? { reconstruction } : {}),
   }
 
-  // Final gate: the record must replay without throwing.
+  // Final gate: the record must derive without throwing.
   replay(record.setup, record.events)
+  deriveHand(record)
   return record
 }
 

@@ -12,6 +12,10 @@ const PREFIX = 'handforge:'
 export const PREFERENCE_KEYS = {
   activeSession: 'activeSession',
   showTableDiagram: 'showTableDiagram',
+  /** Quick Reconstruct or Live Track, whichever was used last. */
+  recordMode: 'recordMode',
+  /** A Quick Reconstruct draft not yet saved, so a locked phone or a reload does not lose it. */
+  reconstructDraft: 'reconstructDraft',
 } as const
 
 export type PreferenceKey = (typeof PREFERENCE_KEYS)[keyof typeof PREFERENCE_KEYS]

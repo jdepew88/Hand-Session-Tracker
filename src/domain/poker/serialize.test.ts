@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
+import type { HandDraft } from './draft/model'
 import type { HandRecord } from './models'
 import { replay } from './reducer'
 import { HAND_EXPORT_KIND, exportHand, handFilename, parseHandExport, serializeHand } from './serialize'
@@ -182,5 +183,129 @@ describe('imported JSON is untrusted', () => {
     const restored = parseHandExport(JSON.stringify(file))
     const state = replay(restored.setup, restored.events)
     expect(computeResult(restored.setup, state).heroResult).not.toBe(999_999)
+  })
+})
+
+describe('reconstructed hands', () => {
+  /** Hero (seat 3) vs seat 4, from memory: AK suited, no amounts, flop ranks only. */
+  function reconstructedRecord(): HandRecord {
+    const live = sampleRecord()
+    const reconstruction: HandDraft = {
+      version: 1,
+      participants: [3, 4],
+      hero: {
+        cards: [
+          { rank: 'A', suit: null },
+          { rank: 'K', suit: null },
+        ],
+        suited: true,
+      },
+      streets: [
+        {
+          street: 'preflop',
+          cards: [],
+          suits: null,
+          actions: [
+            { id: 'p1', seat: 3, action: 'raise', amount: null },
+            { id: 'p2', seat: 4, action: 'call', amount: null },
+          ],
+        },
+        {
+          street: 'flop',
+          cards: [
+            { rank: 'T', suit: null },
+            { rank: '8', suit: null },
+            { rank: '2', suit: null },
+          ],
+          suits: { kind: 'two-tone', suit: 'c' },
+          actions: [],
+        },
+      ],
+      showdown: [],
+      winners: [3],
+      pot: 12_000,
+    }
+    return { ...live, setup: { ...live.setup, heroCards: [] }, events: [], manualWinners: [], reconstruction }
+  }
+
+  it('exports as version 2 with the remembered hand and no invented result', () => {
+    const file = exportHand(reconstructedRecord())
+    expect(file.schemaVersion).toBe(2)
+    expect(file.reconstruction?.hero.suited).toBe(true)
+    expect(file.actions).toEqual([])
+    expect(file.result).toBeNull()
+  })
+
+  it('keeps live-tracked hands at version 1, so older builds still read them', () => {
+    expect(exportHand(sampleRecord()).schemaVersion).toBe(1)
+  })
+
+  it('round-trips with every unknown still unknown', () => {
+    const original = reconstructedRecord()
+    const restored = parseHandExport(serializeHand(original))
+    expect(restored.reconstruction).toEqual(original.reconstruction)
+    expect(restored.events).toEqual([])
+    expect(restored.reconstruction!.streets[1]!.cards.every((card) => card.suit === null)).toBe(true)
+  })
+
+  it('reads an exact reconstruction back with its pot worked out by the engine', () => {
+    const original = reconstructedRecord()
+    const draft = original.reconstruction!
+    const exact: HandRecord = {
+      ...original,
+      reconstruction: {
+        ...draft,
+        streets: [
+          {
+            ...draft.streets[0]!,
+            actions: [
+              { id: 'p1', seat: 3, action: 'raise', amount: 1_500 },
+              { id: 'p2', seat: 4, action: 'call', amount: null },
+            ],
+          },
+          {
+            ...draft.streets[1]!,
+            actions: [
+              { id: 'f1', seat: 3, action: 'bet', amount: 2_000 },
+              { id: 'f2', seat: 4, action: 'fold', amount: null },
+            ],
+          },
+        ],
+      },
+    }
+    // Hero opens to $15, seat 4 calls, the rest fold; Hero's flop bet is not called and comes back.
+    const file = exportHand(exact)
+    expect(file.result?.grossPot).toBe(500 + 500 + 1_500 + 1_500)
+    expect(file.result?.heroResult).toBe(500 + 500 + 1_500)
+    expect(parseHandExport(JSON.stringify(file)).reconstruction).toEqual(exact.reconstruction)
+  })
+
+  it('rejects a reconstruction that could not have happened', () => {
+    const file = exportHand(reconstructedRecord()) as unknown as Record<string, unknown>
+    const draft = file.reconstruction as HandDraft
+    draft.streets[1]!.cards[0] = { rank: 'A', suit: 's' }
+    draft.hero.cards = [
+      { rank: 'A', suit: 's' },
+      { rank: 'K', suit: 'd' },
+    ]
+    expect(() => parseHandExport(JSON.stringify(file))).toThrow(/appears more than once/)
+  })
+
+  it('rejects a reconstruction alongside an action log, and one in a version 1 file', () => {
+    const both = exportHand(reconstructedRecord()) as unknown as Record<string, unknown>
+    both.actions = exportHand(sampleRecord()).actions
+    expect(() => parseHandExport(JSON.stringify(both))).toThrow(/cannot also have an action log/)
+
+    const old = exportHand(reconstructedRecord()) as unknown as Record<string, unknown>
+    old.schemaVersion = 1
+    expect(() => parseHandExport(JSON.stringify(old))).toThrow(/version 1 file cannot contain/)
+  })
+
+  it('reports malformed remembered cards and amounts', () => {
+    const file = exportHand(reconstructedRecord()) as unknown as Record<string, unknown>
+    const draft = file.reconstruction as unknown as { hero: { cards: unknown[] }; streets: { actions: { amount: unknown }[] }[] }
+    draft.hero.cards[0] = { rank: 'Z', suit: null }
+    draft.streets[0]!.actions[0]!.amount = -5
+    expect(() => parseHandExport(JSON.stringify(file))).toThrow(ValidationError)
   })
 })

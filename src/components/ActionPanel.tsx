@@ -18,9 +18,9 @@ import { AmountInput } from './AmountInput'
 /**
  * The control surface used while a hand is in progress.
  *
- * Everything needed to act is on one screen without scrolling: who is up,
- * their stack, what they have in, what it costs to call, and four large
- * buttons. Bet sizing expands inline rather than opening a dialog -- a modal
+ * Everything needed to act fits under the table on a phone: who is up, their
+ * stack, what they have in, what it costs to call, and four large buttons in
+ * one row. Bet sizing expands inline rather than opening a dialog -- a modal
  * at a live table is a mis-tap waiting to happen.
  */
 export function ActionPanel({
@@ -73,40 +73,37 @@ export function ActionPanel({
       : validateAction(state, buildAction(state, acting, aggression, raiseTo))
 
   return (
-    <section
-      aria-label="Action"
-      className="border-t border-room-700 bg-room-900/95 px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur"
-    >
-      <div className="mb-3 flex items-baseline justify-between gap-3">
-        <h2 className="text-lg font-semibold">
+    <section aria-label="Action" className="bg-room-900/95 px-3 pt-2.5 pb-3">
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 className="min-w-0 truncate text-base font-semibold">
           {seatTitle(seat, heroSeat)}
           <span className="ml-2 text-sm font-normal text-room-400">Seat {seat.seat}</span>
         </h2>
-        <p className="text-sm text-room-300 tabular">
+        <p className="shrink-0 text-sm text-room-300 tabular">
           Stack <span className="font-semibold text-room-50">{formatCents(seat.stack)}</span>
         </p>
       </div>
 
-      <dl className="mb-3 grid grid-cols-3 gap-2 text-center">
-        <div className="rounded-lg bg-room-850 py-2">
-          <dt className="text-[0.7rem] uppercase tracking-wide text-room-400">In this street</dt>
-          <dd className="text-base font-semibold tabular">{formatCents(seat.streetCommitted)}</dd>
+      <dl className="mb-2 flex flex-wrap gap-x-3 text-xs text-room-400 tabular">
+        <div>
+          <dt className="inline">In this street </dt>
+          <dd className="inline font-semibold text-room-50">{formatCents(seat.streetCommitted)}</dd>
         </div>
-        <div className="rounded-lg bg-room-850 py-2">
-          <dt className="text-[0.7rem] uppercase tracking-wide text-room-400">To call</dt>
-          <dd className="text-base font-semibold tabular text-felt-200">{formatCents(toCall)}</dd>
+        <div>
+          <dt className="inline">To call </dt>
+          <dd className="inline font-semibold text-felt-200">{formatCents(toCall)}</dd>
         </div>
-        <div className="rounded-lg bg-room-850 py-2">
-          <dt className="text-[0.7rem] uppercase tracking-wide text-room-400">Pot</dt>
-          <dd className="text-base font-semibold tabular">{formatCents(state.pot)}</dd>
+        <div>
+          <dt className="inline">Pot </dt>
+          <dd className="inline font-semibold text-room-50">{formatCents(state.pot)}</dd>
         </div>
       </dl>
 
       {raiseTo === null ? (
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-4 gap-1.5">
           <button
             type="button"
-            className="btn-danger h-14 text-base"
+            className="btn-danger h-14 px-1 text-base"
             onClick={() => emit(buildAction(state, acting, 'fold'))}
           >
             Fold
@@ -115,7 +112,7 @@ export function ActionPanel({
           {check ? (
             <button
               type="button"
-              className="btn-secondary h-14 text-base"
+              className="btn-secondary h-14 px-1 text-base"
               onClick={() => emit(buildAction(state, acting, 'check'))}
             >
               Check
@@ -123,7 +120,7 @@ export function ActionPanel({
           ) : (
             <button
               type="button"
-              className="btn-secondary h-14 flex-col gap-0 text-base"
+              className="btn-secondary h-14 flex-col gap-0 px-1 text-base"
               onClick={() => emit(buildAction(state, acting, 'call'))}
             >
               <span>Call</span>
@@ -133,7 +130,7 @@ export function ActionPanel({
 
           <button
             type="button"
-            className="btn-primary h-14 text-base"
+            className="btn-primary h-14 px-1 text-base"
             disabled={!canRaise}
             onClick={() => setRaiseTo(floor)}
           >
@@ -142,7 +139,7 @@ export function ActionPanel({
 
           <button
             type="button"
-            className="btn h-14 border border-felt-500/50 bg-felt-700/30 text-base text-felt-200 hover:bg-felt-700/50"
+            className="btn h-14 border border-felt-500/50 bg-felt-700/30 px-1 text-base text-felt-200 hover:bg-felt-700/50"
             onClick={() => emit(buildAllIn(state, acting))}
           >
             <span className="flex flex-col gap-0">

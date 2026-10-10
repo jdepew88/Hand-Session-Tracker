@@ -3,7 +3,9 @@ import { Link } from 'react-router-dom'
 import { EmptyState, Page } from '../components/Page'
 import { CardRow } from '../components/PlayingCard'
 import { formatCents } from '../domain/money'
-import { deriveHand } from '../domain/poker/lifecycle'
+import { exactHoleCards } from '../domain/poker/draft/memory'
+import { boardText, holeCardsText } from '../domain/poker/draft/text'
+import { deriveHand, heroOutcome, heroResultOf } from '../domain/poker/lifecycle'
 import { HAND_TAGS, type HandRecord } from '../domain/poker/models'
 import { useStore } from '../store/context'
 import { formatDateTime } from '../utils/labels'
@@ -51,9 +53,13 @@ export function HandHistoryPage() {
       if (tag && !hand.tags.includes(tag)) return false
       if (favouritesOnly && !hand.favorite) return false
       if (result !== 'any') {
-        const net = deriveHand(hand).result.heroResult
-        if (result === 'won' && net <= 0) return false
-        if (result === 'lost' && net >= 0) return false
+        // Without amounts, a reconstructed hand still knows who won.
+        const net = heroResultOf(hand)
+        const outcome = heroOutcome(hand)
+        const won = net !== null ? net > 0 : outcome === 'won'
+        const lost = net !== null ? net < 0 : outcome === 'lost'
+        if (result === 'won' && !won) return false
+        if (result === 'lost' && !lost) return false
       }
       if (needle) {
         const haystack = `${hand.notes} ${hand.tags.join(' ')} ${hand.context.location}`.toLowerCase()
@@ -63,7 +69,8 @@ export function HandHistoryPage() {
     })
   }, [hands, sessionId, location, stakes, position, tag, favouritesOnly, result, query])
 
-  const net = filtered.reduce((sum, hand) => sum + deriveHand(hand).result.heroResult, 0)
+  const net = filtered.reduce((sum, hand) => sum + (heroResultOf(hand) ?? 0), 0)
+  const withoutFigure = filtered.filter((hand) => heroResultOf(hand) === null && !deriveHand(hand).inProgress).length
 
   return (
     <Page
@@ -72,6 +79,7 @@ export function HandHistoryPage() {
         <>
           {filtered.length} of {hands.length} hand{hands.length === 1 ? '' : 's'} ·{' '}
           <span className="tabular">{formatCents(net, { sign: true })}</span> across the shown hands
+          {withoutFigure > 0 && <> ({withoutFigure} without amounts not counted)</>}
         </>
       }
     >
@@ -175,7 +183,14 @@ function Select({
 }
 
 export function HandCard({ hand, showLocation = false }: { hand: HandRecord; showLocation?: boolean }) {
-  const { state, result, inProgress } = deriveHand(hand)
+  const { state, result, inProgress, draft, reconstructed } = deriveHand(hand)
+  const net = heroResultOf(hand)
+  const outcome = heroOutcome(hand)
+  const heroCards = exactHoleCards(draft.hero)
+  const remembered = holeCardsText(draft.hero)
+  const board = reconstructed
+    ? draft.streets.map(boardText).filter((text): text is string => text !== null).join(' · ')
+    : ''
 
   return (
     <Link
@@ -193,6 +208,7 @@ export function HandCard({ hand, showLocation = false }: { hand: HandRecord; sho
               </span>
             )}
             {inProgress && <span className="chip border-felt-500/50 text-felt-200">In progress</span>}
+            {reconstructed && <span className="chip font-normal">Reconstructed</span>}
           </p>
           <p className="mt-0.5 text-xs text-room-400 tabular">
             {formatDateTime(hand.createdAt)}
@@ -200,19 +216,31 @@ export function HandCard({ hand, showLocation = false }: { hand: HandRecord; sho
             {hand.context.stakesLabel}
           </p>
         </div>
-        <CardRow cards={hand.setup.heroCards} size="sm" placeholders={2} />
+        {heroCards ? (
+          <CardRow cards={heroCards} size="sm" />
+        ) : remembered !== 'Not recorded' ? (
+          <span className="chip shrink-0 font-semibold text-room-50">{remembered}</span>
+        ) : (
+          <CardRow cards={[]} size="sm" placeholders={2} />
+        )}
       </div>
 
       <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-        <span className="chip tabular">Pot {formatCents(result.grossPot)}</span>
-        {!inProgress && (
-          <span
-            className={`chip tabular ${result.heroResult >= 0 ? 'text-felt-200' : 'text-chip-red'}`}
-          >
-            {formatCents(result.heroResult, { sign: true })}
+        {result ? (
+          <span className="chip tabular">Pot {formatCents(result.grossPot)}</span>
+        ) : (
+          draft.pot !== null && <span className="chip tabular">Pot about {formatCents(draft.pot)}</span>
+        )}
+        {!inProgress && net !== null && (
+          <span className={`chip tabular ${net >= 0 ? 'text-felt-200' : 'text-chip-red'}`}>
+            {formatCents(net, { sign: true })}
           </span>
         )}
-        {state.board.length > 0 && <CardRow cards={state.board} size="sm" />}
+        {!inProgress && net === null && outcome && (
+          <span className="chip">{outcome === 'won' ? 'Hero won' : outcome === 'lost' ? 'Hero lost' : 'Split pot'}</span>
+        )}
+        {state && !reconstructed && state.board.length > 0 && <CardRow cards={state.board} size="sm" />}
+        {board && <span className="chip tabular text-room-50">{board}</span>}
         {hand.tags.map((entry) => (
           <span key={entry} className="chip">
             {entry}

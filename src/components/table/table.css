@@ -347,13 +347,22 @@
   font-weight: 500;
 }
 
+/* The player's label: always shown, truncated on phones. The accessible name carries it in full. */
 .pt-seat__name {
-  display: none;
-  max-width: 8em;
+  display: block;
+  max-width: 6.4em;
   overflow: hidden;
   text-overflow: ellipsis;
   font-size: 0.78em;
   color: var(--hf-steel);
+}
+
+/* Ten chairs on a phone-sized table: slightly narrower pods so neighbours clear each other. */
+@container pt-table (max-width: 559px) {
+  .pt-n10 .pt-seat {
+    min-width: 4.6em;
+    padding-inline: 0.4em;
+  }
 }
 
 .pt-seat__stack {
@@ -474,7 +483,10 @@
     font-size: clamp(11px, 1.75cqi, 15px);
   }
 
-  .pt-seat__name,
+  .pt-seat__name {
+    max-width: 8em;
+  }
+
   .pt-seat__bb {
     display: block;
   }

@@ -1,0 +1,352 @@
+/*
+ * Record: the table as the working surface.
+ *
+ * Physical things (felt, seats, cards, the puck) show the hand; everything
+ * you press is an ordinary control. Classes only -- the CSP forbids style
+ * attributes -- and seat-relative spots reuse the table's own seat geometry:
+ * an element with `pt-seat-N` inherits that seat's --x / --y.
+ */
+
+/* A squarer table on phones so the tray below stays on screen. */
+.rc-frame .pt-table {
+  aspect-ratio: 1 / 1;
+}
+
+/* Live Track needs room for the action tray under it. */
+.rc-frame--compact .pt-table {
+  aspect-ratio: 5 / 4;
+}
+
+/* Ten chairs need the height on phones, whichever screen. */
+.rc-frame .pt-table.pt-n10 {
+  aspect-ratio: 5 / 6;
+}
+
+.rc-frame--compact .pt-table.pt-n10 {
+  aspect-ratio: 1 / 1;
+}
+
+@container pt-table (min-width: 560px) {
+  .rc-frame .pt-table,
+  .rc-frame .pt-table.pt-n10,
+  .rc-frame--compact .pt-table.pt-n10 {
+    aspect-ratio: 16 / 10;
+  }
+}
+
+/* Seats that are not in the hand fade back but keep their number and position. */
+.pt-seat.rc-seat--out {
+  border-style: dashed;
+  border-color: rgba(241, 237, 228, 0.22);
+  background: rgba(13, 17, 19, 0.55);
+  box-shadow: none;
+  color: var(--hf-steel-dim);
+}
+
+.pt-seat.rc-seat--out .pt-seat__pos,
+.pt-seat.rc-seat--folded .pt-seat__pos {
+  color: var(--hf-steel-dim);
+}
+
+.pt-seat.rc-seat--folded {
+  background: rgba(13, 17, 19, 0.6);
+  box-shadow: none;
+  color: var(--hf-steel-dim);
+}
+
+/* The player to act: a ring and the words TO ACT, never the ring alone. */
+.pt-seat.rc-seat--acting {
+  border-color: var(--hf-bone);
+  box-shadow:
+    0 0 0 2px var(--hf-bone),
+    0 0 1.1em rgba(241, 237, 228, 0.28);
+  z-index: 4;
+}
+
+.pt-seat.rc-seat--static {
+  cursor: default;
+}
+
+.pt-seat.rc-seat--static:hover {
+  border-color: rgba(241, 237, 228, 0.16);
+}
+
+.pt-seat.rc-seat--disabled {
+  cursor: not-allowed;
+}
+
+.rc-seat__state {
+  margin-top: 0.12em;
+  font-size: 0.66em;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--hf-steel);
+}
+
+.rc-seat--acting .rc-seat__state {
+  color: var(--hf-bone);
+}
+
+/*
+ * A spot between a seat and the middle of the felt: hero's cards, a bet,
+ * the last action. Needs the seat's pt-seat-N class for its coordinates.
+ */
+.rc-spot {
+  position: absolute;
+  left: calc(50% + (var(--x) - 50%) * 0.6);
+  top: calc(50% + (var(--y) - 50%) * 0.6);
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2em;
+  font-size: clamp(7.5px, 2.4cqi, 11px);
+}
+
+.rc-spot--hero {
+  z-index: 5;
+  font-size: clamp(8px, 2.7cqi, 12px);
+}
+
+.rc-spot__cards {
+  display: inline-flex;
+  gap: 0.18em;
+}
+
+.rc-spot__cards .hf-card {
+  width: 2.2em;
+  height: 3.05em;
+}
+
+.rc-chipnote {
+  padding: 0.15em 0.55em;
+  border-radius: 999px;
+  background: rgba(10, 16, 19, 0.82);
+  border: 1px solid rgba(241, 237, 228, 0.18);
+  color: var(--hf-bone);
+  font-size: 1em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The middle of the felt: street, board, pot -- a little above centre, clear of the seats' spots. */
+.rc-center {
+  position: absolute;
+  left: 50%;
+  top: 47%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35em;
+  width: 56%;
+  pointer-events: none;
+  text-align: center;
+  font-size: clamp(8px, 2.6cqi, 12px);
+}
+
+.rc-center__street {
+  font-size: 0.9em;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(243, 238, 227, 0.55);
+}
+
+.rc-center__board {
+  display: flex;
+  gap: 0.28em;
+}
+
+.rc-center__board .hf-card,
+.rc-center__board .hf-slot {
+  width: 2.1em;
+  height: 2.95em;
+}
+
+.rc-center__pot {
+  font-size: 1.05em;
+  font-weight: 700;
+  color: var(--hf-bone);
+  font-variant-numeric: tabular-nums;
+}
+
+.rc-center__note {
+  font-size: 0.9em;
+  color: rgba(243, 238, 227, 0.55);
+}
+
+@container pt-table (min-width: 560px) {
+  .rc-center {
+    width: 44%;
+    font-size: clamp(10px, 1.5cqi, 14px);
+  }
+
+  .rc-spot {
+    font-size: clamp(9px, 1.3cqi, 12px);
+  }
+
+  .rc-spot--hero {
+    font-size: clamp(10px, 1.5cqi, 14px);
+  }
+}
+
+/* Phones: spots a little further in, clear of the (named, taller) seat pods. */
+@container pt-table (max-width: 559px) {
+  .rc-spot {
+    left: calc(50% + (var(--x) - 50%) * 0.58);
+    top: calc(50% + (var(--y) - 50%) * 0.58);
+  }
+}
+
+/* The narrowest phones: a little smaller, so spots clear the seats and the board. */
+@container pt-table (max-width: 339px) {
+  .rc-frame--compact .pt-table.pt-n10 {
+    aspect-ratio: 5 / 6;
+  }
+
+  /*
+   * Live Track's short table has no room for names here; the action panel
+   * names whoever is to act and "Players and stacks" lists everyone.
+   */
+  .rc-frame--compact .pt-seat__name {
+    display: none;
+  }
+
+  .rc-spot {
+    left: calc(50% + (var(--x) - 50%) * 0.57);
+    top: calc(50% + (var(--y) - 50%) * 0.57);
+    font-size: 6.5px;
+  }
+
+  .rc-spot--hero {
+    font-size: 7.5px;
+  }
+
+  .rc-center {
+    font-size: 7.5px;
+  }
+}
+
+/* A card that is only partly remembered: what is known, and "?" for the rest. */
+.hf-card.rc-card--partial {
+  background: linear-gradient(170deg, #ece6d8 0%, #ddd5c3 100%);
+  color: #4a4f53;
+}
+
+.hf-card.rc-card--partial .hf-card__pip {
+  opacity: 0.8;
+}
+
+.hf-card.rc-card--unknown {
+  display: grid;
+  place-items: center;
+  background: rgba(243, 238, 227, 0.08);
+  border: 1px dashed rgba(243, 238, 227, 0.4);
+  box-shadow: none;
+  color: rgba(243, 238, 227, 0.7);
+  font-size: 1.2em;
+  font-weight: 700;
+}
+
+/* -------------------------------------------------------------- controls */
+
+/* The tray of controls stays above the app's tab bar on phones. */
+.rc-tray {
+  position: sticky;
+  /* The tab bar: 56px of tabs, its border and the active tab's rule. */
+  bottom: calc(3.625rem + env(safe-area-inset-bottom));
+  z-index: 30;
+}
+
+@media (min-width: 1024px) {
+  .rc-tray {
+    position: static;
+  }
+}
+
+/* Action tokens on a street's timeline. Modern UI, not chips. */
+.rc-token {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35em;
+  padding: 0.3em 0.6em;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-room-700);
+  background: var(--color-room-850);
+  font-size: 0.8rem;
+  line-height: 1.25;
+}
+
+.rc-token__who {
+  color: var(--color-room-300);
+  font-weight: 600;
+}
+
+.rc-token__verb {
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--color-room-50);
+}
+
+.rc-token__amount {
+  font-variant-numeric: tabular-nums;
+  color: var(--color-felt-200);
+}
+
+.rc-token--hero {
+  border-color: rgba(47, 189, 131, 0.45);
+}
+
+.rc-token--problem {
+  border-color: var(--color-chip-red);
+  border-style: dashed;
+}
+
+.rc-arrow {
+  color: var(--color-room-500);
+  font-size: 0.8rem;
+}
+
+/* Step rail: equal columns, so seven steps fit a 320px screen without scrolling. */
+.rc-steps {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.25rem;
+}
+
+.rc-step {
+  display: flex;
+  min-height: 2.75rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-room-700);
+  background: var(--color-room-900);
+  color: var(--color-room-400);
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.rc-step[aria-current='step'] {
+  border-color: var(--color-felt-400);
+  background: var(--color-room-800);
+  color: var(--color-room-50);
+}
+
+.rc-step:disabled {
+  opacity: 0.4;
+}
+
+.rc-step__mark {
+  font-size: 0.62rem;
+  color: var(--color-felt-200);
+}

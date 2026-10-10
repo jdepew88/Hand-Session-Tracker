@@ -1,13 +1,13 @@
 import { useMemo } from 'react'
 import { formatCents, type Cents } from '../domain/money'
-import type { Card } from '../domain/poker/cards'
 import type { HandSetup, Session } from '../domain/poker/models'
 import { derivePositions } from '../domain/poker/positions'
-import { CardPicker } from './CardPicker'
 import { MoneyField } from './MoneyField'
 
 /**
- * Hand setup.
+ * Adjustments to one hand's setup: the button, Hero's seat, who is dealt in,
+ * stacks, blinds and a straddle. Every value already comes from the table,
+ * so this is optional and folded away; the recorder never asks for it.
  *
  * Seats are what the app stores; position is derived from the button every
  * hand, so moving the button is one tap and every label follows. The position
@@ -19,12 +19,10 @@ export function HandSetupPanel({
   setup,
   session,
   onChange,
-  onStart,
 }: {
   setup: HandSetup
   session: Session
   onChange: (setup: HandSetup) => void
-  onStart: () => void
 }) {
   const allSeats = useMemo(
     () => Array.from({ length: setup.tableSize }, (_, index) => index + 1),
@@ -72,10 +70,8 @@ export function HandSetupPanel({
     return (after[0] ?? sorted[0])!
   }
 
-  const ready = setup.heroCards.length === 2
-
   return (
-    <div className="space-y-5 pb-8">
+    <div className="space-y-5">
       <SeatChooser
         label="Dealer button"
         seats={dealtSeats}
@@ -246,23 +242,6 @@ export function HandSetupPanel({
           ))}
         </div>
       </details>
-
-      <CardPicker
-        legend="Your hole cards"
-        count={2}
-        value={setup.heroCards}
-        usedCards={setup.heroCards}
-        onChange={(cards: Card[]) => onChange({ ...setup, heroCards: cards })}
-      />
-
-      <button
-        type="button"
-        className="btn-primary h-14 w-full text-base"
-        disabled={!ready}
-        onClick={onStart}
-      >
-        {ready ? 'Start preflop action' : 'Choose your two cards'}
-      </button>
     </div>
   )
 }

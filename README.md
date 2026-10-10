@@ -332,11 +332,36 @@ curl -sI https://<your-project>.pages.dev | grep -i -E 'content-security|strict-
 - **Sub-minimum raises warn rather than block.** The app records what happened at a table,
   including the occasional unusual floor ruling. Anything that would corrupt the money
   (over-stack wagers, checking into a bet, wrong seat) is a hard error.
-- **Hand setup is locked once action starts.** To change the button, your seat or a
-  starting stack, undo back to the start of the hand. Editing an action mid-hand is
-  supported by the engine but is not yet exposed in the UI — only undo is.
-- **No table diagram.** Seats are shown as an ordered list rather than a felt ring. The
-  list is faster to tap and reads better on a phone; a desktop ring view is a v2 item.
+- **Two ways to record, one hand record.** *Live Track* records a hand action by action
+  through the engine, from the table's seats, button, blinds and stacks. *Quick
+  Reconstruct* records a hand from memory: who played, Hero's cards, and as much of each
+  street as is remembered. Both save the same `HandRecord`; a reconstructed one carries its
+  remembered story (`reconstruction`) instead of an event log, and exports as schema
+  version 2 (live-tracked hands still export as version 1).
+- **Reconstructed hands keep their gaps.** Unknown suits, unrecorded amounts, unseen
+  opponent cards, skipped streets and an unrecorded winner are all stored as unknown and
+  listed as "Not recorded", never guessed. The pot and Hero's result are worked out by the
+  engine only when every street's action and every bet, raise and stated all-in amount is
+  known; otherwise the hand saves without them and says why. Players left out of a
+  reconstructed hand are taken to have folded preflop, which is what lets the pot be
+  worked out.
+- **Each hand has its own starting stacks.** A hand copies its stacks from the Table when
+  it is dealt. An all-in with no amount means everything the player had left in that
+  stack. A recorded amount that disagrees with the stack (an all-in for a different amount,
+  a bet bigger than the stack) is shown as a conflict, not resolved by changing the stack;
+  the player can correct the amount or that player's starting stack for this hand under
+  "Adjust this hand". That never changes the Table's stacks.
+- **Live Track setup is locked once action starts.** Before the first action, "Adjust this
+  hand" changes the button, seats, stacks, blinds or a straddle for that hand only. After
+  it, undo back to the start. Editing an action mid-hand is supported by the engine but
+  not yet exposed in the UI — only undo is. A reconstructed hand can be edited at any
+  time.
+- **Positions come from the Table.** Both modes derive positions from the table's button
+  and occupied seats. If the Table has no seat or button set, the recorder uses a default
+  and says so.
+- **Unsaved reconstructions are kept in this browser only.** A Quick Reconstruct draft
+  survives a reload, but only on the device it was started on, and a stack corrected for
+  the hand is not kept until the hand is saved.
 - **Missed-blind handling is simplified.** Dead money goes to the pot without counting as
   a live bet. A posted missed big blind, which some rooms treat as live, is not modelled
   separately.
@@ -365,6 +390,8 @@ curl -sI https://<your-project>.pages.dev | grep -i -E 'content-security|strict-
    material. The hand model needs no change.
 5. **Replay view** — step through a saved hand action by action. `replay(setup,
    events.slice(0, n))` already does the work.
-6. **Desktop table ring** with seat positions laid out on a felt.
+6. **Chip and pot movement on the table.** The interactive felt table already exists on
+   the Table and Record screens, with seats, positions, the button, bets, cards and the pot;
+   what is left is animating chips into the pot and the pot to the winner.
 7. **Trusted Types** (`require-trusted-types-for 'script'`) once the dependency tree is
    verified compatible.

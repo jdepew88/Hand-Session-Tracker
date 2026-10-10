@@ -23,6 +23,11 @@ export function PokerSeat({
   buttonRef,
   onSelect,
   onKeyDown,
+  status,
+  tone,
+  inert = false,
+  disabled = false,
+  extraClass = '',
 }: {
   seat: number
   /** Null until the dealer button has been placed. */
@@ -42,6 +47,17 @@ export function PokerSeat({
   buttonRef?: Ref<HTMLButtonElement>
   onSelect?: () => void
   onKeyDown?: (event: KeyboardEvent<HTMLButtonElement>) => void
+  /** A state in words under the seat, e.g. "TO ACT", "FOLDED", "OUT". */
+  status?: string
+  /** How the seat sits in a hand being recorded. */
+  tone?: 'out' | 'folded' | 'acting'
+  /**
+   * Draw the seat without making it a control. The caller describes the
+   * table some other way (the recorder keeps a text list of seats).
+   */
+  inert?: boolean
+  disabled?: boolean
+  extraClass?: string
 }) {
   const classes = [
     'pt-seat',
@@ -49,22 +65,16 @@ export function PokerSeat({
     hero ? 'pt-seat--hero' : '',
     empty ? 'pt-seat--empty' : '',
     selected ? 'pt-seat--selected' : '',
+    tone ? `rc-seat--${tone}` : '',
+    inert ? 'rc-seat--static' : '',
+    disabled ? 'rc-seat--disabled' : '',
+    extraClass,
   ]
     .filter(Boolean)
     .join(' ')
 
-  return (
-    <button
-      ref={buttonRef}
-      type="button"
-      className={classes}
-      aria-label={label}
-      aria-pressed={selected}
-      tabIndex={tabIndex}
-      onClick={onSelect}
-      onKeyDown={onKeyDown}
-      data-seat={seat}
-    >
+  const content = (
+    <>
       {hero && (
         <span className="pt-you" aria-hidden="true">
           YOU
@@ -95,6 +105,36 @@ export function PokerSeat({
           {bigBlinds}
         </span>
       )}
+      {status && (
+        <span className="rc-seat__state" aria-hidden="true">
+          {status}
+        </span>
+      )}
+    </>
+  )
+
+  if (inert) {
+    return (
+      <div className={classes} aria-hidden="true" data-seat={seat}>
+        {content}
+      </div>
+    )
+  }
+
+  return (
+    <button
+      ref={buttonRef}
+      type="button"
+      className={classes}
+      aria-label={label}
+      aria-pressed={selected}
+      aria-disabled={disabled || undefined}
+      tabIndex={tabIndex}
+      onClick={disabled ? undefined : onSelect}
+      onKeyDown={onKeyDown}
+      data-seat={seat}
+    >
+      {content}
     </button>
   )
 }

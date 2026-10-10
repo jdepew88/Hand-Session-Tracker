@@ -1,5 +1,7 @@
 import { formatCents } from '../money'
 import { formatCards } from './cards'
+import { draftSummaryText, summarizeDraft } from './draft/text'
+import { deriveHand } from './lifecycle'
 import type { ActionEvent, HandRecord, HandResult, HandState, SeatState, Street } from './models'
 import { replay } from './reducer'
 import { computeResult } from './showdown'
@@ -64,14 +66,34 @@ export interface SummaryOptions {
   includeRake?: boolean
 }
 
+function headerLine(context: HandRecord['context']): string {
+  const game = GAME_ABBREVIATIONS[context.gameType] ?? context.gameType
+  const location = context.location.trim() === '' ? 'Unknown location' : context.location.trim()
+  return `${location} — ${context.stakesLabel} ${game}`.trim()
+}
+
+/** The copyable summary for any hand: the full history for live hands, the remembered story for reconstructed ones. */
+export function handSummaryText(record: HandRecord, options: SummaryOptions = {}): string {
+  if (!record.reconstruction) return generateSummary(record, options)
+  const derived = deriveHand(record)
+  const lines = [draftSummaryText(summarizeDraft(record.setup, record.reconstruction), headerLine(record.context))]
+  if (derived.result && !derived.result.undetermined) {
+    lines.push('', `Pot: ${formatCents(derived.result.grossPot)}`, `Hero result: ${formatCents(derived.result.heroResult, { sign: true })}`)
+  } else if (derived.result) {
+    lines.push('', `Pot: ${formatCents(derived.result.grossPot)}`)
+  } else if (record.reconstruction.pot !== null) {
+    lines.push('', `Pot: about ${formatCents(record.reconstruction.pot)} (as remembered)`)
+  }
+  lines.push('', 'Reconstructed from memory.')
+  return lines.join('\n')
+}
+
 export function generateSummary(record: HandRecord, options: SummaryOptions = {}): string {
   const { setup, events, context } = record
   const includeRake = options.includeRake ?? true
   const lines: string[] = []
 
-  const game = GAME_ABBREVIATIONS[context.gameType] ?? context.gameType
-  const location = context.location.trim() === '' ? 'Unknown location' : context.location.trim()
-  lines.push(`${location} — ${context.stakesLabel} ${game}`.trim())
+  lines.push(headerLine(context))
   lines.push(`${context.tableSize}-handed`)
 
   const finalState = replay(setup, events)

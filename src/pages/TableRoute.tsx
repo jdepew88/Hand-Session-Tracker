@@ -6,11 +6,13 @@ import { DealerPuck } from '../components/table/DealerButton'
 import { stackDepth } from '../components/table/depth'
 import { PokerSeat } from '../components/table/PokerSeat'
 import { PokerTable } from '../components/table/PokerTable'
+import type { PlayerEdit } from '../components/table/PlayerEditor'
 import { SeatPanel } from '../components/table/SeatPanel'
-import { formatCents, type Cents } from '../domain/money'
+import { formatCents } from '../domain/money'
 import { createPlayer, stakesLabel } from '../domain/poker/factories'
-import type { Session } from '../domain/poker/models'
-import { cannotMarkEmpty, seatHero, setSeatStatus } from '../domain/poker/occupancy'
+import type { PlayerProfile, Session } from '../domain/poker/models'
+import { cannotMarkEmpty, isSeatOccupied, seatHero, setSeatStatus } from '../domain/poker/occupancy'
+import { leaveTable, movePlayer, playersWhoLeft, seatedPlayer, staleOccupants, takeSeat, withPlayerDetails } from '../domain/poker/players'
 import { TABLE_SIZES } from '../domain/poker/positions'
 import { describeTable, positionName, resizeTable, seatLabel, tableSummary } from '../domain/poker/tableView'
 import { useStore } from '../store/context'
@@ -114,26 +116,58 @@ function TableScreen({ session }: { session: Session }) {
     }
   }
 
+  /**
+   * Whoever a profile still places in this chair has left: the person who
+   * sits down now is someone new. Their notes stay with the session.
+   */
+  const clearChair = async (seat: number, now: string) => {
+    const stale = staleOccupants(players, session.id, seat)
+    if (stale.length > 0) await savePlayers(stale.map((player) => leaveTable(player, now)))
+  }
+
   const setHero = async (seat: number) => {
     if (session.heroSeat === seat) return
+    if (!isSeatOccupied(session, seat)) await clearChair(seat, new Date().toISOString())
     await saveSession(seatHero(session, seat))
     setStatus(`You are now in seat ${seat}.`)
   }
 
   const setOccupied = async (seat: number, occupied: boolean) => {
+    const now = new Date().toISOString()
+    const leaving = occupied ? null : seatedPlayer(players, session, seat)
     const { session: next, cleared } = setSeatStatus(session, seat, occupied ? 'occupied' : 'empty')
+    await clearChair(seat, now)
     await saveSession(next)
     if (occupied) {
-      setStatus(`Seat ${seat} has a player again and is dealt into new hands.`)
+      setStatus(`Seat ${seat} has a new player, dealt into new hands. Nothing carries over from whoever sat there before.`)
       return
     }
+    const who = leaving?.nickname.trim()
     setStatus(
       `Seat ${seat} marked empty.` +
+        (who ? ` ${who} has left; their notes stay with this session.` : '') +
         (cleared.includes('hero') ? ' You were sitting there, so your seat needs setting again.' : '') +
         (session.buttonSeat === seat
           ? ` The button stays on seat ${seat} as a dead button; positions return once it is in front of a player.`
           : ''),
     )
+  }
+
+  const move = async (fromSeat: number, toSeat: number) => {
+    const { session: next, moved } = movePlayer(session, players, fromSeat, toSeat)
+    await saveSession(next)
+    if (moved) await savePlayers([moved])
+    setSelectedSeat(toSeat)
+    setFocusSeat(toSeat)
+    const who = moved?.nickname.trim() || (session.heroSeat === fromSeat ? 'You' : `The player in seat ${fromSeat}`)
+    setStatus(`${who} moved from seat ${fromSeat} to seat ${toSeat}. Seat ${fromSeat} is empty.`)
+  }
+
+  const bringBack = async (seat: number, player: PlayerProfile) => {
+    await clearChair(seat, new Date().toISOString())
+    await saveSession(setSeatStatus(session, seat, 'occupied').session)
+    await savePlayers([takeSeat(player, seat)])
+    setStatus(`${player.nickname.trim() || 'That player'} is back, in seat ${seat}.`)
   }
 
   const setButton = async (seat: number) => {
@@ -169,19 +203,11 @@ function TableScreen({ session }: { session: Session }) {
     setStatus(`Table set to ${tableSize} seats.${lost}`)
   }
 
-  const savePlayer = async (
-    seat: number,
-    details: { nickname: string; stack: Cents; stackChanged: boolean },
-  ) => {
+  const savePlayer = async (seat: number, edit: PlayerEdit) => {
     const view = views.find((entry) => entry.seat === seat)
     const base = view?.player ?? { ...createPlayer(session.id, seat), startingStack: session.startingStack }
-    await savePlayers([
-      {
-        ...base,
-        nickname: details.nickname,
-        currentStack: details.stackChanged ? details.stack : base.currentStack,
-      },
-    ])
+    const { stack, stackChanged, ...details } = edit
+    await savePlayers([withPlayerDetails(base, { ...details, ...(stackChanged ? { stack } : {}) }, new Date().toISOString())])
     setStatus(`Seat ${seat} saved.`)
   }
 
@@ -301,7 +327,13 @@ function TableScreen({ session }: { session: Session }) {
 
           {selected ? (
             <SeatPanel
+              // A different person in the chair (or nobody) starts the panel afresh.
+              key={`${selected.seat}:${selected.isEmpty ? 'empty' : (selected.player?.id ?? 'new')}`}
               view={selected}
+              emptySeats={views.filter((view) => view.isEmpty).map((view) => view.seat)}
+              returning={playersWhoLeft(players, session)}
+              onMove={(toSeat) => void move(selected.seat, toSeat)}
+              onBringBack={(player) => void bringBack(selected.seat, player)}
               lineupHref={`/sessions/${session.id}/players`}
               emptyBlockedReason={cannotMarkEmpty(session, selected.seat)}
               onClose={() => {
@@ -311,7 +343,7 @@ function TableScreen({ session }: { session: Session }) {
               onSetHero={() => void setHero(selected.seat)}
               onSetButton={() => void setButton(selected.seat)}
               onSetOccupied={(occupied) => void setOccupied(selected.seat, occupied)}
-              onSavePlayer={(details) => savePlayer(selected.seat, details)}
+              onSavePlayer={(edit) => savePlayer(selected.seat, edit)}
             />
           ) : (
             <section className="card-surface p-4 text-sm text-room-300">

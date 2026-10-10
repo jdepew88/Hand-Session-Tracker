@@ -78,6 +78,10 @@ export function createPlayer(sessionId: string, seat: number): PlayerProfile {
     currentStack: null,
     createdAt: now,
     updatedAt: now,
+    tags: [],
+    aliases: [],
+    notesUpdatedAt: null,
+    leftAt: null,
   }
 }
 
@@ -157,4 +161,16 @@ export function defaultSeats(
       ...(label ? { label } : {}),
     }
   })
+}
+
+/**
+ * Correct one seat's starting stack for a single hand. The hand's stacks are
+ * its own snapshot of the table, so this never touches the session's lineup:
+ * the Table keeps what it had unless the player changes it there.
+ */
+export function withHandStack(setup: HandSetup, seat: number, startingStack: Cents): HandSetup {
+  return {
+    ...setup,
+    seats: setup.seats.map((entry) => (entry.seat === seat ? { ...entry, startingStack } : entry)),
+  }
 }

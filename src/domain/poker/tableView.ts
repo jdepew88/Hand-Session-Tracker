@@ -1,6 +1,7 @@
 import { formatCents, type Cents } from '../money'
-import type { PlayerProfile, SeatOccupancy, SeatStatus, Session } from './models'
+import type { PlayerProfile, PlayerTag, SeatOccupancy, SeatStatus, Session } from './models'
 import { occupiedSeats, seatStatus, withSeatOccupancy } from './occupancy'
+import { playerTags, seatedPlayer } from './players'
 import { TABLE_SIZES, derivePositions, type Position } from './positions'
 
 /**
@@ -26,8 +27,10 @@ export interface TableSeatView {
   position: Position | null
   isHero: boolean
   isButton: boolean
+  /** The person in the chair now; null for an empty chair or nobody noted. */
   player: PlayerProfile | null
   nickname: string
+  tags: PlayerTag[]
   /** The stack a new hand would deal this seat, resolved like `defaultSeats`. */
   stack: Cents
   /** True when the stack is only the session's default buy-in. */
@@ -56,10 +59,10 @@ export function describeTable(
   // derivePositions returns nothing when the button is not on a dealt seat.
   const positions =
     buttonSeat === null ? new Map<number, Position>() : derivePositions(occupiedSeats(session), buttonSeat)
-  const lineup = players.filter((player) => player.sessionId === session.id)
-
   return seats.map((seat) => {
-    const player = lineup.find((candidate) => candidate.seat === seat) ?? null
+    // Only whoever sits in the chair now: a player who left, or one recorded
+    // against a chair that has since been emptied, is not the new occupant.
+    const player = seatedPlayer(players, session, seat)
     const nickname = player?.nickname.trim() ?? ''
     const ownStack =
       player?.currentStack ??
@@ -78,6 +81,7 @@ export function describeTable(
       isButton: buttonSeat === seat,
       player,
       nickname,
+      tags: playerTags(player),
       stack,
       stackIsDefault: ownStack === null,
       hasDetails: nickname !== '' || ownStack !== null,
@@ -141,6 +145,7 @@ export function seatLabel(view: TableSeatView): string {
   if (view.isHero) parts.push('you')
   if (view.isButton && view.position !== 'BTN') parts.push('dealer button')
   if (view.nickname) parts.push(view.nickname)
+  if (view.tags.length > 0) parts.push(view.tags.join(' and '))
   parts.push(view.hasDetails ? `stack ${formatCents(view.stack)}` : 'no player details')
   return parts.join(', ')
 }

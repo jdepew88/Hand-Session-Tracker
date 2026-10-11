@@ -1,6 +1,7 @@
 import { formatCents } from '../../money'
 import { aggressiveActionType, buildAction, maxTo, validateAction } from '../betting'
-import type { ActionEvent, HandEvent, HandResult, HandSetup, HandState } from '../models'
+import type { ActionEvent, HandEvent, HandResult, HandSetup, HandState, Street } from '../models'
+import type { Cents } from '../../money'
 import { awaitingBoardStreet, replay } from '../reducer'
 import { computeResult } from '../showdown'
 import { exactCards, exactHoleCards } from './memory'
@@ -68,14 +69,33 @@ export type Reconstruction =
       conflicts: StackConflict[]
     }
 
-type Attempt = { kind: 'done'; value: Reconstruction }
+type Attempt = { kind: 'done'; value: Reconstruction } | { kind: 'stopped'; state: HandState }
+
+/** Where to stop replaying: just before this action on this street. */
+interface StopAt {
+  street: Street
+  index: number
+}
 
 export function reconstructHand(setup: HandSetup, draft: HandDraft): Reconstruction {
   // The hand's own stacks are authoritative. Only Hero's cards are added.
-  return attemptReconstruction({ ...setup, heroCards: exactHoleCards(draft.hero) ?? [] }, draft).value
+  const attempt = attemptReconstruction({ ...setup, heroCards: exactHoleCards(draft.hero) ?? [] }, draft)
+  if (attempt.kind === 'stopped') throw new Error('A full reconstruction never stops early.')
+  return attempt.value
 }
 
-function attemptReconstruction(setup: HandSetup, draft: HandDraft): Attempt {
+/**
+ * The gross pot just before the `index`-th action on `street`, from the same
+ * engine replay -- or null when anything before it is not known exactly
+ * (an amount, a player's action). "Bet two-thirds pot" can only become
+ * dollars when this is known.
+ */
+export function potBeforeAction(setup: HandSetup, draft: HandDraft, street: Street, index: number): Cents | null {
+  const attempt = attemptReconstruction({ ...setup, heroCards: [] }, draft, { street, index })
+  return attempt.kind === 'stopped' ? attempt.state.pot : null
+}
+
+function attemptReconstruction(setup: HandSetup, draft: HandDraft, stopAt?: StopAt): Attempt {
   const positions = seatPositions(setup)
   const name = (seat: number) => seatName(setup, seat, positions)
   const participants = new Set(draft.participants)
@@ -95,6 +115,7 @@ function attemptReconstruction(setup: HandSetup, draft: HandDraft): Attempt {
 
   for (const street of draft.streets) {
     const title = STREET_TITLE[street.street]
+    const stopHere = stopAt?.street === street.street ? stopAt.index : null
 
     if (street.street !== 'preflop') {
       if (state.status === 'complete') return missing(`The hand was over before the ${street.street}.`)
@@ -107,7 +128,8 @@ function attemptReconstruction(setup: HandSetup, draft: HandDraft): Attempt {
       })
     }
 
-    for (const action of street.actions) {
+    for (const [position, action] of street.actions.entries()) {
+      if (position === stopHere) break
       while (state.actingSeat !== null && state.actingSeat !== action.seat) {
         if (street.street === 'preflop' && !participants.has(state.actingSeat)) push(fold(state.actingSeat))
         else return missing(`${title}: ${name(state.actingSeat)}'s action not recorded`)
@@ -128,6 +150,14 @@ function attemptReconstruction(setup: HandSetup, draft: HandDraft): Attempt {
       }
       if ('missing' in built) return missing(`${title}: ${name(action.seat)}'s ${built.missing}`)
       push(built.event)
+    }
+    if (stopHere !== null) {
+      // Anyone not in the hand who acts before the stopping point has folded.
+      const stopSeat = street.actions[stopHere]?.seat
+      if (street.street === 'preflop') {
+        while (state.actingSeat !== null && state.actingSeat !== stopSeat && !participants.has(state.actingSeat)) push(fold(state.actingSeat))
+      }
+      return { kind: 'stopped', state }
     }
 
     if (street.street === 'preflop') {

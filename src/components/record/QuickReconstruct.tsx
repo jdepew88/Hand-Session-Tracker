@@ -82,6 +82,7 @@ export function QuickReconstruct({
   saveLabel = 'Save hand',
   notice,
   onDraftChange,
+  initialStep,
 }: {
   /**
    * The hand's own snapshot of the table it was dealt at. Corrections made
@@ -96,10 +97,12 @@ export function QuickReconstruct({
   notice?: ReactNode
   /** Called with the draft and the hand's own setup whenever either changes. */
   onDraftChange?: (draft: HandDraft, setup: HandSetup) => void
+  /** Where to open: by default Review for a draft with players, else Players. */
+  initialStep?: Street | 'cards' | 'review' | 'players'
 }) {
   const [draft, setDraftState] = useState(initialDraft)
   const [setup, setSetupState] = useState(initialSetup)
-  const [step, setStep] = useState<Step>(() => (initialDraft.participants.length > 1 ? 'review' : 'players'))
+  const [step, setStep] = useState<Step>(() => initialStep ?? (initialDraft.participants.length > 1 ? 'review' : 'players'))
   const [saving, setSaving] = useState(false)
   const summaryId = useId()
 

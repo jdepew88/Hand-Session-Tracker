@@ -13,7 +13,9 @@ import { PREFERENCE_KEYS, readPreference, writePreference } from '../../storage/
  *
  * Starting stacks corrected for this hand travel with it, stored as the
  * seats whose stack differs from the table's. They are applied to the hand's
- * own setup only; the Table's stacks are never written from here.
+ * own setup only; the Table's stacks are never written from here. So does a
+ * button the narration placed elsewhere for this hand ("I was cutoff"), and
+ * the remembered words a described hand keeps as notes ("turn: a brick").
  */
 
 interface Stored {
@@ -21,13 +23,21 @@ interface Stored {
   draft: unknown
   /** Seat -> starting stack for this hand, where it differs from the table. */
   stacks?: unknown
+  /** This hand's button, where it differs from the table's. */
+  button?: unknown
+  /** Remembered details with no field in the draft, saved as the hand's notes. */
+  notes?: unknown
 }
 
 export interface StoredDraft {
   draft: HandDraft
-  /** The table's setup with this hand's corrected stacks applied. */
+  /** The table's setup with this hand's corrected stacks (and button) applied. */
   setup: HandSetup
+  notes: string[]
 }
+
+const MAX_NOTES = 20
+const MAX_NOTE = 300
 
 export function readStoredDraft(sessionId: string, tableSetup: HandSetup): StoredDraft | null {
   const raw = readPreference(PREFERENCE_KEYS.reconstructDraft)
@@ -52,9 +62,19 @@ export function readStoredDraft(sessionId: string, tableSetup: HandSetup): Store
       }
     }
 
+    if (stored.button !== undefined) {
+      if (typeof stored.button !== 'number' || !dealt.has(stored.button)) return null
+      setup = { ...setup, buttonSeat: stored.button }
+    }
+    let notes: string[] = []
+    if (stored.notes !== undefined) {
+      if (!Array.isArray(stored.notes) || stored.notes.length > MAX_NOTES) return null
+      notes = stored.notes.filter((note): note is string => typeof note === 'string').map((note) => note.slice(0, MAX_NOTE))
+    }
+
     // A draft the current table makes impossible is not worth restoring.
     if (checkDraft(setup, draft).errors.length > 0) return null
-    return { draft, setup }
+    return { draft, setup, notes }
   } catch {
     return null
   }
@@ -66,7 +86,7 @@ export function readStoredDraft(sessionId: string, tableSetup: HandSetup): Store
  */
 export function writeStoredDraft(
   sessionId: string,
-  hand: { draft: HandDraft; setup: HandSetup; tableSetup: HandSetup } | null,
+  hand: { draft: HandDraft; setup: HandSetup; tableSetup: HandSetup; notes?: readonly string[] } | null,
 ) {
   if (!hand) {
     writePreference(PREFERENCE_KEYS.reconstructDraft, null)
@@ -78,13 +98,21 @@ export function writeStoredDraft(
     if (table && table.startingStack !== entry.startingStack) stacks[entry.seat] = entry.startingStack
   }
   const corrected = Object.keys(stacks).length > 0
-  if (!corrected && !draftHasContent(hand.draft)) {
+  const button = hand.setup.buttonSeat !== hand.tableSetup.buttonSeat ? hand.setup.buttonSeat : null
+  const notes = (hand.notes ?? []).slice(0, MAX_NOTES)
+  if (!corrected && button === null && notes.length === 0 && !draftHasContent(hand.draft)) {
     writePreference(PREFERENCE_KEYS.reconstructDraft, null)
     return
   }
   writePreference(
     PREFERENCE_KEYS.reconstructDraft,
-    JSON.stringify({ sessionId, draft: hand.draft, ...(corrected ? { stacks } : {}) }),
+    JSON.stringify({
+      sessionId,
+      draft: hand.draft,
+      ...(corrected ? { stacks } : {}),
+      ...(button !== null ? { button } : {}),
+      ...(notes.length > 0 ? { notes } : {}),
+    }),
   )
 }
 

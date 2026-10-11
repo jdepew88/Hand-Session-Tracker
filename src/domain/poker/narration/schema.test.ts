@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { CORPUS, act, person, response, street, to } from './fixtures/corpus'
-import { InterpretationError, readInterpretation } from './schema'
+import { InterpretationError, fillUnsaid, readInterpretation } from './schema'
 
 const valid = () =>
   JSON.parse(
@@ -85,5 +85,37 @@ describe('the parser response contract', () => {
     const value = valid()
     value.unplaced = ['<img src=x onerror=alert(1)>\u0000\u0007']
     expect(readInterpretation(value).unplaced).toEqual(['<img src=x onerror=alert(1)>'])
+  })
+})
+
+describe('fields a model leaves out', () => {
+  const full = () => JSON.parse(JSON.stringify(response({
+    people: [person('p1', ['BB'], 'BB')],
+    streets: [street('preflop', [act('hero', 'raise', 'raise 15', { size: to(15) }), act('p1', 'call', 'BB calls')])],
+  }))) as Record<string, unknown>
+
+  it('fills only fields whose empty value means "not said"', () => {
+    const value = full()
+    for (const key of ['showdown', 'result', 'pot', 'contradictions', 'unplaced']) delete value[key]
+    const streets = value.streets as Record<string, unknown>[]
+    delete streets[0]!.forgotten
+    delete (streets[0]!.items as Record<string, unknown>[])[1]!.timing
+    expect(() => readInterpretation(value)).toThrow(InterpretationError)
+    expect(readInterpretation(fillUnsaid(value))).toEqual(readInterpretation(full()))
+  })
+
+  it('never overrides what is there, and leaves every other problem to the strict reader', () => {
+    const present = { ...full(), pot: { dollars: 40, approximate: true, said: 'about 40' } }
+    expect(readInterpretation(fillUnsaid(present)).pot).toEqual({ dollars: 40, approximate: true, said: 'about 40' })
+
+    const noVersion = full()
+    delete noVersion.version
+    expect(() => readInterpretation(fillUnsaid(noVersion))).toThrow(InterpretationError)
+    expect(() => readInterpretation(fillUnsaid({ ...full(), extra: 1 }))).toThrow(InterpretationError)
+    expect(() => readInterpretation(fillUnsaid({ ...full(), showdown: 'none' }))).toThrow(InterpretationError)
+    const noSaid = full()
+    delete ((noSaid.streets as Record<string, unknown>[])[0]!.items as Record<string, unknown>[])[0]!.said
+    expect(() => readInterpretation(fillUnsaid(noSaid))).toThrow(InterpretationError)
+    expect(fillUnsaid('junk')).toBe('junk')
   })
 })

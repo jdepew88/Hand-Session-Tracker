@@ -14,14 +14,25 @@ import { InterpretationError } from '../domain/poker/narration/schema'
 
 export const NARRATION_ENDPOINT = '/api/narration'
 const MAX_RESPONSE_CHARS = 128 * 1024
+/**
+ * The browser gives up after this. The server gives the provider 25 s; this
+ * leaves room for the round trip, so a hung request never leaves the player
+ * staring at "Building the draft…". Their text is kept either way.
+ */
+export const CLIENT_TIMEOUT_MS = 30_000
 
 export const SERVICE_NOTICE = 'Your hand description will be sent to the AI service to turn it into a draft. Review everything before saving.'
 
-export function serviceParser(fetchImpl: typeof fetch = (input, init) => fetch(input, init)): HandNarrationParser {
+export function serviceParser(fetchImpl: typeof fetch = (input, init) => fetch(input, init), timeoutMs = CLIENT_TIMEOUT_MS): HandNarrationParser {
   return {
     kind: 'service',
     description: SERVICE_NOTICE,
     async parse(request, signal) {
+      // The caller's signal (the player cancelled) or the timeout, whichever comes first.
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), timeoutMs)
+      const cancel = () => controller.abort()
+      signal?.addEventListener('abort', cancel)
       let response: Response
       try {
         response = await fetchImpl(NARRATION_ENDPOINT, {
@@ -29,10 +40,13 @@ export function serviceParser(fetchImpl: typeof fetch = (input, init) => fetch(i
           headers: { 'Content-Type': 'application/json' },
           credentials: 'same-origin',
           body: JSON.stringify({ text: request.text, context: request.context }),
-          ...(signal ? { signal } : {}),
+          signal: controller.signal,
         })
       } catch {
         throw new NarrationUnavailableError('unavailable')
+      } finally {
+        clearTimeout(timer)
+        signal?.removeEventListener('abort', cancel)
       }
       if (response.status === 413) throw new NarrationUnavailableError('too-long')
       if (!response.ok) throw new NarrationUnavailableError('unavailable')

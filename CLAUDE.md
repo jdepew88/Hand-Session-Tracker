@@ -8,12 +8,49 @@ Practice Labs project and to the EarthLink/IMAP Workers project; instructions fr
 ## What this is
 
 A mobile-first web app for recording live No-Limit Hold'em sessions and reconstructing
-individual hands — used on a phone, at a table, often one-handed. It runs entirely in
-the browser: no accounts, no server, no network calls after load. Hands export and import
-as versioned JSON.
+individual hands — used on a phone, at a table, often one-handed. It is primarily a
+client-side app: no accounts, no server-side storage, and the default build makes no
+network calls after load. Hands export and import as versioned JSON.
 
-**Stack:** React + TypeScript + Vite + Tailwind, deployed to **Cloudflare Pages** as a
-static site. No Node server, no Pages Functions.
+**Stack:** React + TypeScript + Vite + Tailwind, deployed to **Cloudflare Pages**
+(production at https://sessiontracker.pages.dev, deployed by the Git integration). The site is static
+apart from **one optional same-origin Pages Function**, described below. No Node server,
+no bindings.
+
+### The narration service boundary (`/api/narration`)
+
+The AI text-reconstruction feature ("Paste / type" in Quick Reconstruct) turns a typed
+hand description into the existing draft model. The pieces:
+
+- `src/domain/poker/narration/` — context packaging, the strict response schema and
+  validator, deterministic normalisation into a `HandDraft`, and the on-device practice
+  parser. Pure domain code; no network.
+- `src/services/narrationParser.ts` — picks the parser for this build.
+- `src/server/narration.ts` — the request handler (origin, content type, size and schema
+  checks; provider call; strict validation of the provider's answer).
+- `functions/api/narration.ts` — the Pages Function that serves that handler at
+  `/api/narration`. Cloudflare Pages builds `functions/` automatically with the site.
+
+Rules for this boundary:
+
+- **The default build uses the on-device practice parser and makes no AI network call.**
+  The service parser is used only when the client is built with
+  `VITE_NARRATION_PARSER=service`; otherwise it is dropped from the bundle.
+- **The provider key is server-side only.** The function reads `ANTHROPIC_API_KEY` (and
+  optional `NARRATION_MODEL`) from the Pages project's secrets and returns **503** without
+  it. No API key ever goes in browser code, the repository, `VITE_*`/public environment
+  variables, or client storage. `src/server/noSecrets.test.ts` guards the client source.
+- Parser output is untrusted: it goes through `readInterpretation` and the deterministic
+  normaliser, and is reviewed and confirmed by the player before the existing save flow.
+  The model never saves a hand, chooses routes, runs code, or produces HTML.
+- Send the minimum context only (`buildNarrationContext`): never player notes, ids,
+  other sessions, Results or bankroll data.
+- **Do not create a second Worker or Pages project** for this feature, and do not broaden
+  the CSP for it — `connect-src 'self'` already covers the same-origin call.
+- **Future AI and voice work must reuse this same boundary** (`HandNarrationParser`,
+  the narration schema/validator, `/api/narration`) rather than adding a parallel path.
+- Do not configure the production secret or switch production to the service parser
+  without explicit approval.
 
 Read `README.md` for the architecture in depth before changing anything structural.
 
@@ -78,8 +115,9 @@ Keep the project focused on **fast, accurate live poker-hand entry**. The UX tar
 re-entering table information between hands.
 
 **Do not add** accounts, authentication, Cloudflare D1 or any server-side database,
-payments, subscriptions, analytics, telemetry, social features, or AI/LLM features —
-unless explicitly requested. The architecture is deliberately ready for accounts and D1
+payments, subscriptions, analytics, telemetry, social features, or further AI/LLM
+features — unless explicitly requested. (AI text reconstruction was requested; it lives
+behind the narration boundary above.) The architecture is deliberately ready for accounts and D1
 later (UUID keys, `updatedAt` stamps, repository interfaces); being ready is not
 permission to build it.
 

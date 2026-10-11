@@ -16,6 +16,10 @@ export const PREFERENCE_KEYS = {
   recordMode: 'recordMode',
   /** A Quick Reconstruct draft not yet saved, so a locked phone or a reload does not lose it. */
   reconstructDraft: 'reconstructDraft',
+  /** Quick Reconstruct: build by hand, or paste / type a description. */
+  reconstructEntry: 'reconstructEntry',
+  /** A hand description being turned into a draft, so a failure or reload never loses it. */
+  narration: 'narration',
 } as const
 
 export type PreferenceKey = (typeof PREFERENCE_KEYS)[keyof typeof PREFERENCE_KEYS]

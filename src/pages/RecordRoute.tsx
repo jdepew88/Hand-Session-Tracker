@@ -1,19 +1,26 @@
 import { useMemo, useState } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { EmptyState, Page } from '../components/Page'
+import { NarrationInput, type NarrationStatus } from '../components/record/NarrationInput'
+import { NarrationReview } from '../components/record/NarrationReview'
 import { QuickReconstruct } from '../components/record/QuickReconstruct'
 import { RecordTable } from '../components/record/RecordTable'
 import { draftSeatViews } from '../components/record/draftSeats'
 import { readStoredDraft, writeStoredDraft } from '../components/record/storedDraft'
+import { readStoredNarration, writeStoredNarration, type StoredNarration } from '../components/record/storedNarration'
 import { createDraft } from '../domain/poker/draft/ops'
 import type { HandDraft } from '../domain/poker/draft/model'
 import { createHandRecord, createHandSetup, handContext, stakesLabel } from '../domain/poker/factories'
 import { isHandInProgress } from '../domain/poker/lifecycle'
-import type { HandSetup, PlayerProfile, Session } from '../domain/poker/models'
+import type { HandSetup, PlayerProfile, Session, Street } from '../domain/poker/models'
+import { buildNarrationContext } from '../domain/poker/narration/context'
+import { buildNarrationDraft } from '../domain/poker/narration/normalize'
+import { interpretNarration } from '../domain/poker/narration/parser'
 import { newHandSeating } from '../domain/poker/occupancy'
 import { positionName } from '../domain/poker/tableView'
 import { PREFERENCE_KEYS, readPreference, writePreference } from '../storage/preferences'
 import { useStore } from '../store/context'
+import { activeNarrationParser } from '../services/narrationParser'
 import { useActiveSession } from '../store/useActiveSession'
 import { gameShort } from '../utils/labels'
 
@@ -142,16 +149,81 @@ function TableNotice({ session }: { session: Session }) {
   )
 }
 
+type Entry = 'manual' | 'text'
+
+const ENTRIES: { id: Entry; label: string }[] = [
+  { id: 'manual', label: 'Build manually' },
+  { id: 'text', label: 'Paste / type' },
+]
+
+/** What the recorder opens with: a hand picked up from storage, or one built from a description. */
+interface Seed {
+  draft: HandDraft
+  setup: HandSetup
+  notes: string[]
+  origin: 'stored' | 'narration'
+  step?: 'players' | 'review' | 'cards' | Street
+}
+
+const blankNarration = (): StoredNarration => ({ text: '', interpretation: null, answers: {} })
+
 function QuickRecord({ session, lineup, handNumber }: { session: Session; lineup: readonly PlayerProfile[]; handNumber: number }) {
   const navigate = useNavigate()
   const { saveHand } = useStore()
   const setup = useNextHandSetup(session, lineup)
-  const [restored] = useState(() => readStoredDraft(session.id, setup))
+  const [seed, setSeed] = useState<Seed | null>(() => {
+    const stored = readStoredDraft(session.id, setup)
+    return stored ? { ...stored, origin: 'stored' } : null
+  })
   const [attempt, setAttempt] = useState(0)
-  const fromStorage = attempt === 0 ? restored : null
-  const initial: HandDraft = fromStorage?.draft ?? createDraft(setup)
-  // The hand's own stacks: the table's, plus any correction kept with the draft.
-  const initialSetup = fromStorage?.setup ?? setup
+  const [narration, setNarrationState] = useState<StoredNarration>(() => readStoredNarration(session.id) ?? blankNarration())
+  const [entry, setEntryState] = useState<Entry>(() =>
+    narration.text.trim() !== '' || narration.interpretation
+      ? 'text'
+      : !seed && readPreference(PREFERENCE_KEYS.reconstructEntry) === 'text'
+        ? 'text'
+        : 'manual',
+  )
+  const [status, setStatus] = useState<NarrationStatus>({ kind: 'idle' })
+  const [parser] = useState(activeNarrationParser)
+  const context = useMemo(() => buildNarrationContext(session, setup, lineup), [session, setup, lineup])
+  const outcome = useMemo(
+    () => (narration.interpretation ? buildNarrationDraft(narration.interpretation, context, setup, narration.answers) : null),
+    [narration, context, setup],
+  )
+  const notes = seed?.notes ?? []
+
+  const setEntry = (next: Entry) => {
+    setEntryState(next)
+    writePreference(PREFERENCE_KEYS.reconstructEntry, next)
+  }
+
+  const setNarration = (next: StoredNarration) => {
+    setNarrationState(next)
+    writeStoredNarration(session.id, next)
+  }
+
+  const build = async () => {
+    if (status.kind === 'working') return
+    setStatus({ kind: 'working' })
+    const result = await interpretNarration(parser, { text: narration.text, context }, { online: navigator.onLine })
+    if (result.ok) {
+      setNarration({ text: narration.text, interpretation: result.interpretation, answers: {} })
+      setStatus({ kind: 'idle' })
+    } else {
+      setStatus({ kind: 'failed', reason: result.reason })
+    }
+  }
+
+  /** Hand the built draft to the recorder. Nothing is saved: the recorder has its own Review and Save. */
+  const openInRecorder = (step: Seed['step']) => {
+    if (!outcome) return
+    writeStoredDraft(session.id, { draft: outcome.draft, setup: outcome.setup, tableSetup: setup, notes: outcome.notes })
+    setNarration(blankNarration())
+    setSeed({ draft: outcome.draft, setup: outcome.setup, notes: outcome.notes, origin: 'narration', step })
+    setAttempt((value) => value + 1)
+    setEntry('manual')
+  }
 
   // `handSetup` is this hand's snapshot, including any stack corrected for this hand only.
   const save = async (draft: HandDraft, handSetup: HandSetup) => {
@@ -159,41 +231,102 @@ function QuickRecord({ session, lineup, handNumber }: { session: Session; lineup
       ...createHandRecord(session, handSetup, handNumber),
       context: handContext(session, handSetup),
       reconstruction: draft,
+      notes: notes.join('\n'),
     }
     await saveHand(record)
     writeStoredDraft(session.id, null)
     void navigate(`/hands/${record.id}`)
   }
 
+  const initial: HandDraft = seed?.draft ?? createDraft(setup)
+  // The hand's own stacks and button: the table's, plus any correction kept with the draft.
+  const initialSetup = seed?.setup ?? setup
+
   return (
-    <QuickReconstruct
-      key={attempt}
-      setup={initialSetup}
-      header={`${stakesLabel(session)} ${gameShort(session.gameType)}`}
-      initialDraft={initial}
-      onSave={save}
-      onDraftChange={(draft, handSetup) => writeStoredDraft(session.id, { draft, setup: handSetup, tableSetup: setup })}
-      notice={
-        <>
-          <TableNotice session={session} />
-          {attempt === 0 && restored && (
-            <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-room-300">
-              Picked up the hand you hadn&rsquo;t saved.
-              <button
-                type="button"
-                className="btn-ghost px-3 text-sm"
-                onClick={() => {
-                  writeStoredDraft(session.id, null)
-                  setAttempt((value) => value + 1)
-                }}
-              >
-                Start over
-              </button>
-            </p>
+    <>
+      <div role="group" aria-label="How to reconstruct" className="mb-3 grid grid-cols-2 gap-1 rounded-xl border border-room-700 bg-room-900 p-1">
+        {ENTRIES.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            aria-pressed={entry === option.id}
+            onClick={() => setEntry(option.id)}
+            className={`min-h-11 rounded-lg px-2 text-sm ${entry === option.id ? 'bg-room-700 font-semibold text-room-50' : 'text-room-400 hover:text-room-50'}`}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+
+      {entry === 'text' ? (
+        <div className="mx-auto max-w-2xl">
+          {outcome ? (
+            <NarrationReview
+              outcome={outcome}
+              onAnswer={(id, answer) => {
+                const answers = { ...narration.answers }
+                if (answer === null) delete answers[id]
+                else answers[id] = answer
+                setNarration({ ...narration, answers })
+              }}
+              onEditText={() => setNarration({ text: narration.text, interpretation: null, answers: {} })}
+              onEditDraft={() => openInRecorder('players')}
+              onConfirm={() => openInRecorder(outcome.editAt ?? 'review')}
+            />
+          ) : (
+            <NarrationInput
+              text={narration.text}
+              onText={(text) => {
+                setNarration({ text, interpretation: null, answers: {} })
+                if (status.kind === 'failed') setStatus({ kind: 'idle' })
+              }}
+              parser={parser}
+              status={status}
+              onBuild={() => void build()}
+              onClear={() => {
+                setNarration(blankNarration())
+                setStatus({ kind: 'idle' })
+              }}
+              onManual={() => {
+                setStatus({ kind: 'idle' })
+                setEntry('manual')
+              }}
+            />
           )}
-        </>
-      }
-    />
+        </div>
+      ) : (
+        <QuickReconstruct
+          key={attempt}
+          setup={initialSetup}
+          header={`${stakesLabel(session)} ${gameShort(session.gameType)}`}
+          initialDraft={initial}
+          {...(seed?.step ? { initialStep: seed.step } : {})}
+          onSave={save}
+          onDraftChange={(draft, handSetup) => writeStoredDraft(session.id, { draft, setup: handSetup, tableSetup: setup, notes })}
+          notice={
+            <>
+              <TableNotice session={session} />
+              {seed && (
+                <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-room-300">
+                  {seed.origin === 'narration' ? 'Built from your description. Check it, then save.' : 'Picked up the hand you hadn’t saved.'}
+                  <button
+                    type="button"
+                    className="btn-ghost px-3 text-sm"
+                    onClick={() => {
+                      writeStoredDraft(session.id, null)
+                      setSeed(null)
+                      setAttempt((value) => value + 1)
+                    }}
+                  >
+                    Start over
+                  </button>
+                </p>
+              )}
+            </>
+          }
+        />
+      )}
+    </>
   )
 }
 

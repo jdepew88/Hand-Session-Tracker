@@ -6,6 +6,10 @@ individual hands — at the table, or right after you walk away from it.
 Everything runs in the browser. There are no accounts, no server, and nothing leaves
 the device. Hands export and import as versioned JSON files.
 
+The one exception is opt-in: a build configured for the AI hand reader sends a typed hand
+description, with the minimum table context, to SessionTracker's own endpoint. The default
+build does not (see [Describing a hand in words](#8-describing-a-hand-in-words)).
+
 ---
 
 ## Quick start
@@ -53,6 +57,12 @@ src/
       validation.ts          untrusted-input validation
       lifecycle.ts           record + derived state helpers
       factories.ts           constructors for sessions, hands, players
+      draft/                 the remembered-hand model Quick Reconstruct writes
+      narration/             free-text hand descriptions -> that same draft
+  server/
+    narration.ts             the /api/narration handler (runs as a Pages Function)
+  services/
+    narrationParser.ts       which narration parser this build uses
   storage/
     db.ts                    minimal IndexedDB wrapper
     repositories.ts          repository interfaces + IndexedDB implementations
@@ -61,6 +71,8 @@ src/
   components/                reusable UI
   pages/                     one file per screen
   utils/                     labels, file download/read helpers
+functions/
+  api/narration.ts           Cloudflare Pages Function: wires the handler to /api/narration
 ```
 
 ### 1. The hand-state engine
@@ -248,6 +260,56 @@ hash or a nonce for it rather than widening these.
   confirmation messages, `aria-live` on the running bet amount.
 - `prefers-reduced-motion` is respected.
 
+### 8. Describing a hand in words
+
+Quick Reconstruct can be filled in by hand (**Build manually**) or from a description
+(**Paste / type**): "I'm in the cutoff, folds to me, I raise to 17, big blind calls…".
+A description never becomes a hand directly. It goes through five steps, and only the
+last one saves anything:
+
+1. **Context.** `narration/context.ts` packages the minimum the reader may use: game,
+   blinds, the seats dealt in, Hero's seat, the table's button, and for each seat the
+   label, aliases and quick tags the player added. Never notes, never other sessions,
+   results or bankroll, never ids.
+2. **Interpretation.** A parser (`HandNarrationParser`) reads the words and returns the
+   response contract in `narration/schema.ts`: who was mentioned and by which phrases,
+   what Hero was dealt, each street's board and actions, sizes as said ("to $120",
+   "$80 more", "2/3 pot"), showdown, result, contradictions, and anything it could not
+   place. It never names a seat or a player id.
+3. **Validation.** Every response is untrusted. `readInterpretation` checks it strictly —
+   unknown fields, wrong types, oversized text or lists reject the whole response.
+4. **Normalisation.** `narration/normalize.ts` turns the response into the existing
+   `HandDraft` through the same pure draft operations the recorder's buttons call. It is
+   deterministic: phrases are matched to seats by the player-reference matcher (labels,
+   aliases, tags, seat numbers, positions — never notes); the hand's own button is worked
+   out from what the narrator said about positions, so "I was cutoff" wins over where the
+   table's button is now; "jack ten of hearts" is re-read by plain code and a suit the
+   narrator never said is dropped; "raise 80 more" becomes a total only when the bet
+   before it is known. Anything ambiguous becomes a question (which position, who "he"
+   is, which reading of "checks two-thirds"), answered on the review screen without
+   another parser call.
+5. **Review, then the existing save flow.** The review groups every fact as Confirmed,
+   Interpreted, Needs clarification or Not recorded — in words, not colour, and never as a
+   percentage. Confirming opens the draft in Quick Reconstruct's own Review, with its own
+   checks and Save button.
+
+Remembered things the draft has no field for ("turn: a brick", "bet 2/3 pot", "tanked",
+"about $200 in the pot") are kept as the hand's notes. A pot fraction is never turned into
+dollars unless the pot is known exactly and the player accepts the offered amount.
+
+**Which parser.** By default the build uses an *on-device practice parser*
+(`narration/local.ts`): a small rule-based reader of common shorthand, so the whole flow
+works — and is tested — with no AI service and no network. A build made with
+`VITE_NARRATION_PARSER=service` instead posts the description to `/api/narration` on the
+same origin (allowed by `connect-src 'self'`; the CSP is unchanged). That endpoint
+(`src/server/narration.ts`, run by `functions/api/narration.ts`) checks the request's
+origin, type and size, asks the AI provider to fill in the response contract, checks the
+answer with the same strict reader, and returns it. The provider key is a server-side
+secret (`ANTHROPIC_API_KEY`, optional `NARRATION_MODEL`); it is never in the bundle, the
+repository or the browser. Without it the endpoint answers 503 and the app says it
+couldn't build the draft, keeps the description, and offers Retry or Continue manually.
+Nothing is stored or logged server-side.
+
 ---
 
 ## Testing
@@ -282,7 +344,11 @@ cannot.
 
 ## Deploying to Cloudflare Pages
 
-The app is fully static. No Node server, no Functions, no bindings.
+The app is static, with one optional Pages Function: `functions/api/narration.ts`, the
+AI hand reader's endpoint. Pages builds it automatically from `functions/`. It does
+nothing until the `ANTHROPIC_API_KEY` secret is set (it answers 503), and the default
+client build never calls it: the browser only uses it when built with
+`VITE_NARRATION_PARSER=service`. No Node server, no bindings.
 
 ### Option A — Git integration (recommended)
 
@@ -359,9 +425,17 @@ curl -sI https://<your-project>.pages.dev | grep -i -E 'content-security|strict-
 - **Positions come from the Table.** Both modes derive positions from the table's button
   and occupied seats. If the Table has no seat or button set, the recorder uses a default
   and says so.
-- **Unsaved reconstructions are kept in this browser only.** A Quick Reconstruct draft
-  survives a reload, but only on the device it was started on, and a stack corrected for
-  the hand is not kept until the hand is saved.
+- **Unsaved reconstructions are kept in this browser only.** A Quick Reconstruct draft —
+  with any stack corrected for that hand, a button the description placed elsewhere, and
+  remembered notes — survives a reload, but only on the device it was started on. So does
+  a hand description that has not been turned into a draft yet.
+- **The practice parser is modest.** Without an AI service connected, descriptions are
+  read by a small rule-based parser that handles one clause at a time and common
+  shorthand. It leaves anything it cannot read in "Not placed" rather than guessing, so
+  looser descriptions need more answers or manual editing.
+- **Pot fractions are not stored as fractions.** "Bets 2/3 pot" is shown as a fraction on
+  the review screen and kept in the hand's notes; the saved action has no amount unless
+  the pot was known and the offered dollar figure was accepted.
 - **Missed-blind handling is simplified.** Dead money goes to the pot without counting as
   a live bet. A posted missed big blind, which some rooms treat as live, is not modelled
   separately.

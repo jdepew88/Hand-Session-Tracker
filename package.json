@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "verify": "npm run typecheck && npm run lint && npm run test && npm run build",
+    "eval:narration": "vitest run --config vitest.eval.config.ts",
     "deploy": "npx wrangler@latest pages deploy dist",
     "cf-preview": "npx wrangler@latest pages dev dist"
   },

@@ -368,6 +368,42 @@ function board(value: unknown, field: string, issues: Issues, street: Street): N
   }
 }
 
+/** Fields whose empty value means "the narration did not say": the only ones a response may leave out. */
+const SAID_NOTHING = {
+  response: { heroPositions: [], button: null, people: [], heroCards: null, streets: [], showdown: [], result: null, pot: null, contradictions: [], unplaced: [] },
+  street: { board: null, items: [], forgotten: false },
+  action: { size: null, shorthand: false, timing: null },
+  showdown: { cards: null },
+} as const
+
+/**
+ * Fill in fields a model left out whose empty value means "not said" (no
+ * showdown, no pot, a street not forgotten). Real models sometimes drop
+ * them; the value they stand for is exactly "nothing", so nothing is
+ * invented. Fields that are present are never touched, and everything
+ * else -- wrong types, unknown fields, a missing version, a missing
+ * "said" -- is still for `readInterpretation` to reject.
+ */
+export function fillUnsaid(value: unknown): unknown {
+  if (!isRecord(value)) return value
+  const fill = (record: Record<string, unknown>, defaults: Record<string, unknown>) => {
+    const out: Record<string, unknown> = { ...record }
+    for (const [key, empty] of Object.entries(defaults)) if (!(key in out)) out[key] = Array.isArray(empty) ? [] : empty
+    return out
+  }
+  const response = fill(value, SAID_NOTHING.response)
+  if (Array.isArray(response.streets)) {
+    response.streets = response.streets.map((street) => {
+      if (!isRecord(street)) return street
+      const filled = fill(street, SAID_NOTHING.street)
+      if (Array.isArray(filled.items)) filled.items = filled.items.map((item) => (isRecord(item) && item.type === 'action' ? fill(item, SAID_NOTHING.action) : item))
+      return filled
+    })
+  }
+  if (Array.isArray(response.showdown)) response.showdown = response.showdown.map((entry) => (isRecord(entry) ? fill(entry, SAID_NOTHING.showdown) : entry))
+  return response
+}
+
 /**
  * Check a parser response. Returns the interpretation, or throws
  * `InterpretationError` listing what is wrong -- never a partly-read result.

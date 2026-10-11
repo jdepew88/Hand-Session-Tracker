@@ -20,7 +20,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
+    include: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'eval/**/*.test.ts'],
     // CSS is stubbed out in tests, except the table stylesheets, whose
     // reduced-motion gating is itself under test.
     css: { include: [/components\/(table|home)\/[^/]+\.css/] },

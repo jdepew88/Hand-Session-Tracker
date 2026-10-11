@@ -7,3 +7,10 @@ coverage/
 !.env.example
 .wrangler/
 .DS_Store
+
+# Local Cloudflare secrets (wrangler pages dev, narration eval)
+.dev.vars
+.dev.vars.*
+
+# Live narration evaluation output (npm run eval:narration)
+eval/narration/runs/

@@ -31,4 +31,16 @@ describe('the service parser', () => {
     })
     expect(await interpretNarration(offline, { text: 'x', context })).toEqual({ ok: false, reason: 'unavailable' })
   })
+
+  it('gives up after its timeout, or when the player cancels, instead of waiting forever', async () => {
+    // A service that never answers until the request is aborted.
+    const hang: typeof fetch = (_input, init) =>
+      new Promise((_resolve, reject) => init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError'))))
+    expect(await interpretNarration(serviceParser(hang, 20), { text: 'x', context })).toEqual({ ok: false, reason: 'unavailable' })
+
+    const controller = new AbortController()
+    const pending = interpretNarration(serviceParser(hang, 60_000), { text: 'x', context }, { signal: controller.signal })
+    controller.abort()
+    expect(await pending).toEqual({ ok: false, reason: 'unavailable' })
+  })
 })

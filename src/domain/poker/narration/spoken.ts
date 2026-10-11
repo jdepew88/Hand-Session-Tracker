@@ -147,11 +147,14 @@ const shorthandToken = /^(?:(?:10|[akqjt2-9x?])[shdc?]?)+$/
  * pattern) from "two of clubs" (a card).
  */
 export function parseSpokenCards(phrase: string, slots: number): SpokenCards | null {
-  let source = phrase.toLowerCase()
+  let source = phrase
   for (const [symbol, word] of Object.entries(SYMBOLS)) source = source.split(symbol).join(word)
   source = source.replace(/[’']/g, '').replace(/[,.;:!]/g, ' ').replace(/-/g, ' ')
-  const tokens = source.split(/\s+/).filter(Boolean)
+  /** As written: a capital "A" before shorthand ("A 9 3", "A K 4") is an Ace, not the article. */
+  const written = source.split(/\s+/).filter(Boolean)
+  const tokens = written.map((token) => token.toLowerCase())
   if (tokens.length === 0) return null
+  const isShorthand = (token: string | undefined) => token !== undefined && /^(?:10|[AKQJT2-9])(?:[shdc]|10|[AKQJT2-9])*$/.test(token)
 
   const result: SpokenCards = { cards: [], suited: null, pattern: null, patternSuit: null, description: null }
   /** Index of the first card not yet given a suit by "of hearts" / "all spades". */
@@ -190,6 +193,11 @@ export function parseSpokenCards(phrase: string, slots: number): SpokenCards | n
     if (token === 'offsuit' || token === 'offsuited' || (token === 'off' && next === 'suit')) {
       result.suited = false
       if (token === 'off') index += 1
+      continue
+    }
+    // "ace king off": players drop the "suit".
+    if (token === 'off' && next === undefined && result.cards.length === 2) {
+      result.suited = false
       continue
     }
     if (token === 'rainbow') {
@@ -255,7 +263,18 @@ export function parseSpokenCards(phrase: string, slots: number): SpokenCards | n
       result.cards.push({ rank, suit: null })
       continue
     }
+    if (written[index] === 'A' && isShorthand(written[index + 1])) {
+      result.cards.push({ rank: 'A', suit: null })
+      continue
+    }
     if (CARD_FILLER.has(token)) continue
+    // "AKss": two ranks, both of one suit.
+    const doubled = /^([akqjt2-9])([akqjt2-9])([shdc])\3$/.exec(token)
+    if (doubled) {
+      const suit = doubled[3] as Suit
+      result.cards.push({ rank: doubled[1]!.toUpperCase() as Rank, suit }, { rank: doubled[2]!.toUpperCase() as Rank, suit })
+      continue
+    }
     if (token === 'x' || token === '?' || token === 'unknown') {
       result.cards.push({ rank: null, suit: null })
       continue

@@ -52,6 +52,17 @@ Rules for this boundary:
 - Do not configure the production secret or switch production to the service parser
   without explicit approval.
 
+### Speak hand (voice)
+
+"Speak hand" is only another way to fill the same description box. `src/services/speech/`
+turns speech into text behind a `SpeechTranscriber` interface (today the browser's Web
+Speech API; a server-side transcriber would plug in there) and a pure recorder state
+machine. The speech layer **never interprets poker** -- no seats, cards, actions or
+amounts -- and the transcript goes through the narration parser exactly like typed text.
+**No audio is stored or uploaded by SessionTracker**; only the transcript text is kept
+(with the narration, in local storage). Nothing is sent to the parser until the player
+taps Build draft.
+
 Read `README.md` for the architecture in depth before changing anything structural.
 
 ## Architectural rules
@@ -106,7 +117,8 @@ silently. The exported `result` snapshot is informational and must stay ignored 
 
 If something genuinely needs an inline script or style, add a hash or a nonce. Do not
 widen the CSP. Do not remove `frame-ancestors`, HSTS, `nosniff`, Referrer-Policy,
-Permissions-Policy or the cross-origin headers.
+Permissions-Policy or the cross-origin headers. Permissions-Policy denies every feature
+except `microphone=(self)`, which Speak hand needs; `src/headers.test.ts` guards this.
 
 ## Scope
 

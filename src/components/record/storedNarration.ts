@@ -11,8 +11,12 @@ import { PREFERENCE_KEYS, readPreference, writePreference } from '../../storage/
  * as untrusted input.
  */
 
+/** How the words arrived: typed or pasted, or spoken and transcribed. Either way they are the same text. */
+export type NarrationSource = 'typed' | 'voice'
+
 export interface StoredNarration {
   text: string
+  source: NarrationSource
   interpretation: NarrationInterpretation | null
   answers: NarrationAnswers
 }
@@ -40,7 +44,8 @@ export function readStoredNarration(sessionId: string): StoredNarration | null {
         if (typeof value === 'string' && key.length <= 64 && value.length <= 32) answers[key] = value
       }
     }
-    return { text, interpretation, answers: interpretation ? answers : {} }
+    const source: NarrationSource = stored.source === 'voice' ? 'voice' : 'typed'
+    return { text, source, interpretation, answers: interpretation ? answers : {} }
   } catch {
     return null
   }
@@ -53,6 +58,6 @@ export function writeStoredNarration(sessionId: string, narration: StoredNarrati
   }
   writePreference(
     PREFERENCE_KEYS.narration,
-    JSON.stringify({ sessionId, text: narration.text, interpretation: narration.interpretation, answers: narration.answers }),
+    JSON.stringify({ sessionId, text: narration.text, source: narration.source, interpretation: narration.interpretation, answers: narration.answers }),
   )
 }

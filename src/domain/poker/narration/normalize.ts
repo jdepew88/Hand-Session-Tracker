@@ -1,6 +1,6 @@
 import { formatCents, type Cents } from '../../money'
 import { checkDraft } from '../draft/check'
-import { flowFor } from '../draft/flow'
+import { finalLive, flowFor } from '../draft/flow'
 import { UNKNOWN_CARD, type CardMemory, type DraftActionKind, type FlopSuits, type HandDraft, type HoleCardsMemory } from '../draft/model'
 import {
   addAction,
@@ -829,6 +829,16 @@ export function buildNarrationDraft(
       fact({ id: 'result', topic: 'Result', text: words, source: 'explicit', said: interpretation.result.said || null, detail: null })
     } else {
       fact({ id: 'result', topic: 'Result', text: `Not placed: ${quote(interpretation.result.said)}`, source: 'conflict', state: 'clarify', said: interpretation.result.said, detail: 'Waiting on who this was.' })
+    }
+  } else {
+    // "He mucks" with no "I win": a hand mucked at showdown gives up the pot, so the one hand left wins.
+    const live = finalLive(setup, draft)
+    const mucked = new Set(draft.showdown.filter((entry) => entry.status === 'mucked').map((entry) => entry.seat))
+    const standing = live.filter((seat) => !mucked.has(seat))
+    if (live.length >= 2 && standing.length === 1) {
+      const winner = standing[0]!
+      draft = setWinners(draft, [winner])
+      fact({ id: 'result', topic: 'Result', text: `${name(winner)} wins`, source: 'derived', said: null, detail: 'Every other hand at showdown was mucked.' })
     }
   }
 

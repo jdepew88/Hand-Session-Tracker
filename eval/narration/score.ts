@@ -117,7 +117,7 @@ const POSITION_WORDS: Record<string, RegExp> = {
   'UTG+2': /utg ?\+ ?2|utg ?plus ?two|\butg2\b|under the gun plus two/,
   'UTG+3': /utg ?\+ ?3|utg ?plus ?three|\butg3\b|under the gun plus three/,
   LJ: /\b(lojack|lowjack|low jack|lj)\b/,
-  HJ: /\b(hijack|hi-jack|high jack|hj)\b/,
+  HJ: /\b(hijack|hi-jack|hi jack|high jack|hj)\b/,
   CO: /\b(cutoff|cut-off|cut off|co)\b/,
 }
 

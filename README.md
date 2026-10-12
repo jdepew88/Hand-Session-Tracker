@@ -226,7 +226,7 @@ Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'
 Strict-Transport-Security: max-age=31536000; includeSubDomains
 X-Content-Type-Options: nosniff
 Referrer-Policy: strict-origin-when-cross-origin
-Permissions-Policy: camera=(), geolocation=(), microphone=(), payment=(), … (all denied)
+Permissions-Policy: camera=(), geolocation=(), microphone=(self), payment=(), … (all denied except the microphone, same origin only, for "Speak hand")
 Cross-Origin-Opener-Policy: same-origin
 Cross-Origin-Resource-Policy: same-origin
 X-Frame-Options: DENY

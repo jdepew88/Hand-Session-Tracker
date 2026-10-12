@@ -1,5 +1,6 @@
 import type { ShowdownStatus } from '../../src/domain/poker/draft/model'
 import type { Street } from '../../src/domain/poker/models'
+import { VOICE_TRANSCRIPTS } from '../../src/domain/poker/narration/fixtures/voice'
 
 /**
  * The provider-evaluation corpus: hands told the way players actually tell
@@ -43,6 +44,8 @@ export type CaseKind =
   | 'player-ref'
   | 'noisy'
   | 'terminology'
+  /** A browser speech-recognition transcript: no punctuation, spoken numbers, misheard words. */
+  | 'voice'
 
 /** A question the narrator's answer must find: matched against the question's id, wording and quoted words. */
 export interface AnswerRule {
@@ -89,6 +92,13 @@ export interface EvalCase {
   allowPositions?: string[]
   /** Amounts a model may compute from what was said (3x, "three times his bet"): over-interpretation, not invention. */
   derivedAmounts?: number[]
+}
+
+/** A voice transcript from the shared fixtures, by id. */
+function spoken(id: string): string {
+  const found = VOICE_TRANSCRIPTS.find((entry) => entry.id === id)
+  if (!found) throw new Error(`No voice transcript ${id}.`)
+  return found.text
 }
 
 /** Run several times to see whether the same words give the same hand. */
@@ -809,6 +819,144 @@ export const EVAL_CASES: EvalCase[] = [
       },
       showdown: { 3: 'shown' },
       shownCards: { 3: 'KJ' },
+    },
+  },
+
+  // Voice transcripts (src/domain/poker/narration/fixtures/voice.ts), as speech recognition returns them.
+  {
+    id: 'v01',
+    kinds: ['voice', 'noisy', 'stack'],
+    text: spoken('v01'),
+    expect: {
+      button: 6,
+      participants: [5, 8],
+      boards: { flop: 'A♠ K♠ Q♠' },
+      actions: { preflop: ['Hero raise to $17', 'BB call'], flop: ['BB check', 'Hero bet $10', 'BB call'] },
+    },
+  },
+  {
+    id: 'v02',
+    kinds: ['voice', 'noisy', 'player-ref'],
+    // The spoken form of e01: the same questions, the same answers.
+    text: spoken('v02'),
+    answers: [
+      { ask: /^actor:preflop/, pick: '4' },
+      { ask: /^actor:flop/, pick: ['5', '4'] },
+      { ask: /^actor:turn/, pick: ['5'] },
+    ],
+    expect: {
+      button: 5,
+      participants: [4, 5],
+      boards: { flop: 'T 8 2 · two clubs', turn: 'K♣' },
+      actions: {
+        preflop: ['CO raise to $20', 'Hero 3-bet to $65', 'CO call'],
+        flop: ['Hero bet $50', 'CO call'],
+        turn: ['Hero bet $120', 'CO raise to $300', 'Hero call'],
+      },
+    },
+  },
+  {
+    id: 'v03',
+    kinds: ['voice', 'self-correction'],
+    text: spoken('v03'),
+    expect: {
+      participants: [5, 7],
+      boards: { flop: 'J 7 3 · rainbow', river: '9♣' },
+      actions: {
+        preflop: ['Hero raise to $15', 'BB call'],
+        flop: ['BB check', 'Hero check'],
+        turn: ['BB check', 'Hero check'],
+        river: ['BB bet $20', 'Hero fold'],
+      },
+    },
+  },
+  {
+    id: 'v04',
+    kinds: ['voice', 'terminology'],
+    text: spoken('v04'),
+    expect: {
+      participants: [3, 5],
+      heroCards: 'AQ suited',
+      boards: { flop: 'Q 7 2 · rainbow' },
+      actions: { preflop: ['HJ raise to $15', 'Hero 3-bet to $45', 'HJ call'], flop: ['HJ check', 'Hero bet $30', 'HJ fold'] },
+    },
+  },
+  {
+    id: 'v05',
+    kinds: ['voice', 'noisy'],
+    text: spoken('v05'),
+    expect: {
+      button: 5,
+      participants: [4, 5],
+      boards: { flop: 'T 8 2 · two clubs' },
+      actions: { preflop: ['CO raise to $20', 'Hero 3-bet to $65', 'BB fold', 'CO call'] },
+    },
+  },
+  {
+    id: 'v06',
+    kinds: ['voice', 'pot-relative', 'showdown', 'stack'],
+    text: spoken('v06'),
+    expect: {
+      button: 6,
+      participants: [5, 8],
+      heroCards: 'J♥ T♥',
+      boards: { flop: 'A♠ K♠ Q♠', turn: null, river: '9♣' },
+      actions: { preflop: ['Hero raise to $17', 'BB call'], flop: ['BB check', 'Hero bet $10', 'BB call'], turn: ['BB bet', 'Hero call'] },
+      ratios: [
+        { street: 'turn', ratio: 0.67 },
+        { street: 'river', ratio: 1.2 },
+      ],
+      showdown: { 8: 'mucked' },
+      winners: [5],
+    },
+  },
+  {
+    id: 'v07',
+    kinds: ['voice', 'noisy', 'rambling', 'showdown'],
+    // Hero UTG puts the button on seat 2: SB 3, BB 4 (Hoodie Guy), coffee (8) in the lojack.
+    // The river's bare "check" names nobody: asking who is right (only the big blind acts before Hero).
+    text: spoken('v07'),
+    answers: [{ ask: /^actor:river/, pick: '4' }],
+    expect: {
+      button: 2,
+      participants: [4, 5, 8],
+      heroCards: 'JJ',
+      boards: { flop: 'J 6 2 · two hearts', turn: '8♠', river: 'A' },
+      actions: {
+        preflop: ['Hero raise to $15', 'LJ call', 'BB call'],
+        flop: ['BB check', 'Hero bet $40', 'LJ call', 'BB call'],
+        turn: ['BB check', 'Hero check', 'LJ check'],
+        river: ['BB check', 'Hero bet $110', 'LJ fold', 'BB call'],
+      },
+      showdown: { 4: 'mucked' },
+      winners: [5],
+    },
+  },
+  {
+    id: 'v08',
+    kinds: ['voice', 'noisy', 'card-shorthand'],
+    // "for tree" is a mishearing of "four three": reading it as 4 3 is right; asking is acceptable.
+    text: spoken('v08'),
+    expect: {
+      participants: [5, 7],
+      heroCards: 'KQ offsuit',
+      boards: { flop: /^K( 4 3)?/ },
+      actions: { preflop: ['Hero raise to $12', 'BB 3-bet to $40', 'Hero call'], flop: ['BB bet $30', 'Hero call'] },
+    },
+  },
+  {
+    id: 'v09',
+    kinds: ['voice', 'terminology', 'player-ref'],
+    // Hero in the big blind puts the button on seat 3: Hoodie Guy (4) is the small blind.
+    text: spoken('v09'),
+    expect: {
+      button: 3,
+      participants: [4, 5],
+      boards: { flop: '7 7 2' },
+      actions: {
+        preflop: ['SB raise to $30', 'Hero call'],
+        flop: ['Hero check', 'SB bet $25', 'Hero raise to $80', 'SB all-in', 'Hero fold'],
+      },
     },
   },
 ]

@@ -20,6 +20,9 @@ import { DraftSummaryView } from './DraftSummaryView'
  * and a symbol, never by colour alone, and a screen reader hears
  * "Interpreted: Big blind bets two-thirds pot."
  *
+ * The words it came from -- typed, or a voice transcript -- stay one tap
+ * away under "Original narration", to compare with what was read.
+ *
  * Confirming does not save: it opens the draft in Quick Reconstruct's own
  * Review, with its own checks and its own Save button.
  */
@@ -44,12 +47,18 @@ const BADGE_CLASS: Record<ReviewState, string> = {
 
 export function NarrationReview({
   outcome,
+  text,
+  spoken = false,
   onAnswer,
   onEditText,
   onEditDraft,
   onConfirm,
 }: {
   outcome: NarrationOutcome
+  /** The description the draft was built from. */
+  text: string
+  /** It was a voice transcript. */
+  spoken?: boolean
   onAnswer: (id: string, answer: string | null) => void
   onEditText: () => void
   onEditDraft: () => void
@@ -73,6 +82,13 @@ export function NarrationReview({
         </h2>
         <p className="text-sm text-room-300">Nothing is saved yet. Answer anything below, then confirm to finish in the recorder.</p>
       </div>
+
+      <details className="rounded-lg border border-room-700 bg-room-900 px-3 py-2 text-sm">
+        <summary className="cursor-pointer py-1 font-semibold text-room-100">
+          Original narration <span className="font-normal text-room-400">({spoken ? 'voice transcript' : 'typed'})</span>
+        </summary>
+        <p className="mt-1 whitespace-pre-wrap break-words text-room-300">{text}</p>
+      </details>
 
       {outcome.questions.length > 0 && (
         <section ref={questionsRef} tabIndex={-1} aria-labelledby={`${id}-questions`} className="space-y-3 outline-none">
@@ -134,7 +150,7 @@ export function NarrationReview({
         )}
         <div className="flex flex-wrap gap-2">
           <button type="button" className="btn-secondary h-12 px-3" onClick={onEditText}>
-            Edit text
+            {spoken ? 'Edit transcript' : 'Edit text'}
           </button>
           <button type="button" className="btn-secondary h-12 px-3" onClick={onEditDraft}>
             Edit draft

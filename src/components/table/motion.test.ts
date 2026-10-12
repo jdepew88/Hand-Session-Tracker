@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import homeCss from '../home/home.css?raw'
+import recordCss from '../record/record.css?raw'
 import tableCss from './table.css?raw'
 
 /**
@@ -9,7 +10,7 @@ import tableCss from './table.css?raw'
  * still move for someone who asked it not to.
  */
 
-const SHEETS = { 'table.css': tableCss, 'home.css': homeCss }
+const SHEETS = { 'table.css': tableCss, 'home.css': homeCss, 'record.css': recordCss }
 
 /** Strip the no-preference blocks (balanced braces) and return what is left. */
 function outsideNoPreference(css: string): string {

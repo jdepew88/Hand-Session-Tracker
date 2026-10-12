@@ -346,8 +346,9 @@ export const CORPUS: CorpusCase[] = [
       participants: [5, 7],
       heroCards: 'Q♥ Q♦',
       showdown: { 7: 'mucked' },
+      winners: [5],
       actions: { preflop: ['Hero raise to $15', 'BB call'], flop: [], turn: [], river: ['Hero bet $50', 'BB call'] },
-      states: { 'showdown:1': 'confirmed' },
+      states: { 'showdown:1': 'confirmed', result: 'confirmed' },
     },
   },
   {

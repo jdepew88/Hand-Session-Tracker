@@ -129,7 +129,7 @@ describe('scoring a response', () => {
     expect(EVAL_CASES.length).toBeGreaterThanOrEqual(50)
     expect(new Set(EVAL_CASES.map((entry) => entry.id)).size).toBe(EVAL_CASES.length)
     const kinds = new Set(EVAL_CASES.flatMap((entry) => entry.kinds))
-    for (const kind of ['short', 'rambling', 'self-correction', 'pronoun', 'incomplete', 'ambiguous', 'contradictory', 'pot-relative', 'stack', 'showdown', 'card-shorthand', 'board-shorthand', 'player-ref', 'noisy']) {
+    for (const kind of ['short', 'rambling', 'self-correction', 'pronoun', 'incomplete', 'ambiguous', 'contradictory', 'pot-relative', 'stack', 'showdown', 'card-shorthand', 'board-shorthand', 'player-ref', 'noisy', 'voice']) {
       expect(kinds.has(kind as never), kind).toBe(true)
     }
   })

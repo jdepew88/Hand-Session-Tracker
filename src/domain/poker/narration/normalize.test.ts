@@ -200,3 +200,49 @@ describe('the table is context, never changed', () => {
     expect(first.facts.find((fact) => fact.id === 'button')!.detail).toContain('The table has the button on seat 5 now.')
   })
 })
+
+describe('a showdown with no stated winner', () => {
+  // Hero (button, 5) and the big blind (7) see the river; "he calls" then the showdown, with no "I win".
+  const river = (showdown: NarrationInterpretation['showdown'], extra: NarrationInterpretation['people'] = []) =>
+    response({
+      heroPositions: [{ position: 'BTN', said: 'on the button' }],
+      people: [person('p1', ['big blind', 'he'], 'BB'), ...extra],
+      streets: [
+        street('preflop', [
+          act('hero', 'raise', 'I raise to 15', { size: to(15) }),
+          ...(extra.length > 0 ? [act('p2', 'call', 'coffee calls', { actorSaid: 'coffee' })] : []),
+          act('p1', 'call', 'big blind calls', { actorSaid: 'big blind' }),
+        ]),
+        street('river', [
+          act('hero', 'bet', 'I bet 50', { size: to(50) }),
+          ...(extra.length > 0 ? [act('p2', 'call', 'coffee calls', { actorSaid: 'coffee' })] : []),
+          act('p1', 'call', 'he calls', { actorSaid: 'he' }),
+        ]),
+      ],
+      showdown,
+    })
+
+  it('gives the pot to the one hand left when every other hand mucked', () => {
+    const { outcome } = build(river([{ who: 'p1', status: 'mucked', cards: null, said: 'he mucks' }]))
+    expect(outcome.draft.winners).toEqual([5])
+    expect(outcome.facts.find((fact) => fact.id === 'result')).toMatchObject({
+      text: 'Hero wins',
+      source: 'derived',
+      said: null,
+      detail: 'Every other hand at showdown was mucked.',
+    })
+  })
+
+  it('names no winner while two hands are still standing', () => {
+    const shown = build(river([{ who: 'hero', status: 'shown', cards: hole('Qh Qd', 'queens'), said: 'I show queens' }]))
+    expect(shown.outcome.draft.winners ?? null).toBeNull()
+    const threeWay = build(river([{ who: 'p1', status: 'mucked', cards: null, said: 'he mucks' }], [person('p2', ['coffee'], 'UTG')]))
+    expect(threeWay.outcome.draft.winners ?? null).toBeNull()
+    expect(threeWay.outcome.facts.some((fact) => fact.id === 'result')).toBe(false)
+  })
+
+  it('leaves a stated result alone', () => {
+    const { outcome } = build({ ...river([{ who: 'p1', status: 'mucked', cards: null, said: 'he mucks' }]), result: { winners: ['p1'], said: 'he wins' } })
+    expect(outcome.draft.winners).toEqual([7])
+  })
+})

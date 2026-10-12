@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { EmptyState, Page } from '../components/Page'
 import { NarrationInput, type NarrationStatus } from '../components/record/NarrationInput'
 import { NarrationReview } from '../components/record/NarrationReview'
+import { VoiceInput } from '../components/record/VoiceInput'
 import { QuickReconstruct } from '../components/record/QuickReconstruct'
 import { RecordTable } from '../components/record/RecordTable'
 import { draftSeatViews } from '../components/record/draftSeats'
@@ -21,6 +22,7 @@ import { positionName } from '../domain/poker/tableView'
 import { PREFERENCE_KEYS, readPreference, writePreference } from '../storage/preferences'
 import { useStore } from '../store/context'
 import { activeNarrationParser } from '../services/narrationParser'
+import { activeSpeechTranscriber } from '../services/speech'
 import { useActiveSession } from '../store/useActiveSession'
 import { gameShort } from '../utils/labels'
 
@@ -149,12 +151,15 @@ function TableNotice({ session }: { session: Session }) {
   )
 }
 
-type Entry = 'manual' | 'text'
+type Entry = 'manual' | 'text' | 'voice'
 
 const ENTRIES: { id: Entry; label: string }[] = [
   { id: 'manual', label: 'Build manually' },
   { id: 'text', label: 'Paste / type' },
+  { id: 'voice', label: 'Speak hand' },
 ]
+
+const isEntry = (value: string | null): value is Entry => ENTRIES.some((entry) => entry.id === value)
 
 /** What the recorder opens with: a hand picked up from storage, or one built from a description. */
 interface Seed {
@@ -165,7 +170,7 @@ interface Seed {
   step?: 'players' | 'review' | 'cards' | Street
 }
 
-const blankNarration = (): StoredNarration => ({ text: '', interpretation: null, answers: {} })
+const blankNarration = (): StoredNarration => ({ text: '', source: 'typed', interpretation: null, answers: {} })
 
 function QuickRecord({ session, lineup, handNumber }: { session: Session; lineup: readonly PlayerProfile[]; handNumber: number }) {
   const navigate = useNavigate()
@@ -177,15 +182,15 @@ function QuickRecord({ session, lineup, handNumber }: { session: Session; lineup
   })
   const [attempt, setAttempt] = useState(0)
   const [narration, setNarrationState] = useState<StoredNarration>(() => readStoredNarration(session.id) ?? blankNarration())
-  const [entry, setEntryState] = useState<Entry>(() =>
-    narration.text.trim() !== '' || narration.interpretation
-      ? 'text'
-      : !seed && readPreference(PREFERENCE_KEYS.reconstructEntry) === 'text'
-        ? 'text'
-        : 'manual',
-  )
+  const [entry, setEntryState] = useState<Entry>(() => {
+    // A description in progress reopens where it was made; otherwise the way last used, unless a draft is waiting.
+    if (narration.text.trim() !== '' || narration.interpretation) return narration.source === 'voice' ? 'voice' : 'text'
+    const remembered = readPreference(PREFERENCE_KEYS.reconstructEntry)
+    return !seed && isEntry(remembered) ? remembered : 'manual'
+  })
   const [status, setStatus] = useState<NarrationStatus>({ kind: 'idle' })
   const [parser] = useState(activeNarrationParser)
+  const [transcriber] = useState(activeSpeechTranscriber)
   const context = useMemo(() => buildNarrationContext(session, setup, lineup), [session, setup, lineup])
   const outcome = useMemo(
     () => (narration.interpretation ? buildNarrationDraft(narration.interpretation, context, setup, narration.answers) : null),
@@ -208,7 +213,7 @@ function QuickRecord({ session, lineup, handNumber }: { session: Session; lineup
     setStatus({ kind: 'working' })
     const result = await interpretNarration(parser, { text: narration.text, context }, { online: navigator.onLine })
     if (result.ok) {
-      setNarration({ text: narration.text, interpretation: result.interpretation, answers: {} })
+      setNarration({ ...narration, interpretation: result.interpretation, answers: {} })
       setStatus({ kind: 'idle' })
     } else {
       setStatus({ kind: 'failed', reason: result.reason })
@@ -238,59 +243,77 @@ function QuickRecord({ session, lineup, handNumber }: { session: Session; lineup
     void navigate(`/hands/${record.id}`)
   }
 
+  // The same parser, build and fallbacks whether the words were typed or spoken.
+  const narrationControls = {
+    parser,
+    status,
+    onBuild: () => void build(),
+    onClear: () => {
+      setNarration(blankNarration())
+      setStatus({ kind: 'idle' })
+    },
+    onManual: () => {
+      setStatus({ kind: 'idle' })
+      setEntry('manual')
+    },
+  }
+
   const initial: HandDraft = seed?.draft ?? createDraft(setup)
   // The hand's own stacks and button: the table's, plus any correction kept with the draft.
   const initialSetup = seed?.setup ?? setup
 
   return (
     <>
-      <div role="group" aria-label="How to reconstruct" className="mb-3 grid grid-cols-2 gap-1 rounded-xl border border-room-700 bg-room-900 p-1">
+      <div role="group" aria-label="How to reconstruct" className="mb-3 grid grid-cols-3 gap-1 rounded-xl border border-room-700 bg-room-900 p-1">
         {ENTRIES.map((option) => (
           <button
             key={option.id}
             type="button"
             aria-pressed={entry === option.id}
             onClick={() => setEntry(option.id)}
-            className={`min-h-11 rounded-lg px-2 text-sm ${entry === option.id ? 'bg-room-700 font-semibold text-room-50' : 'text-room-400 hover:text-room-50'}`}
+            className={`min-h-11 rounded-lg px-1.5 text-sm leading-tight ${entry === option.id ? 'bg-room-700 font-semibold text-room-50' : 'text-room-400 hover:text-room-50'}`}
           >
             {option.label}
           </button>
         ))}
       </div>
 
-      {entry === 'text' ? (
+      {entry !== 'manual' ? (
         <div className="mx-auto max-w-2xl">
           {outcome ? (
             <NarrationReview
               outcome={outcome}
+              text={narration.text}
+              spoken={narration.source === 'voice'}
               onAnswer={(id, answer) => {
                 const answers = { ...narration.answers }
                 if (answer === null) delete answers[id]
                 else answers[id] = answer
                 setNarration({ ...narration, answers })
               }}
-              onEditText={() => setNarration({ text: narration.text, interpretation: null, answers: {} })}
+              onEditText={() => setNarration({ ...narration, interpretation: null, answers: {} })}
               onEditDraft={() => openInRecorder('players')}
               onConfirm={() => openInRecorder(outcome.editAt ?? 'review')}
+            />
+          ) : entry === 'voice' ? (
+            <VoiceInput
+              transcriber={transcriber}
+              text={narration.text}
+              onText={(text) => {
+                setNarration({ text, source: 'voice', interpretation: null, answers: {} })
+                if (status.kind === 'failed') setStatus({ kind: 'idle' })
+              }}
+              {...narrationControls}
+              onType={() => setEntry('text')}
             />
           ) : (
             <NarrationInput
               text={narration.text}
               onText={(text) => {
-                setNarration({ text, interpretation: null, answers: {} })
+                setNarration({ ...narration, text, interpretation: null, answers: {} })
                 if (status.kind === 'failed') setStatus({ kind: 'idle' })
               }}
-              parser={parser}
-              status={status}
-              onBuild={() => void build()}
-              onClear={() => {
-                setNarration(blankNarration())
-                setStatus({ kind: 'idle' })
-              }}
-              onManual={() => {
-                setStatus({ kind: 'idle' })
-                setEntry('manual')
-              }}
+              {...narrationControls}
             />
           )}
         </div>
